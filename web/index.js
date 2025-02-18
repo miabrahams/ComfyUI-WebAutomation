@@ -8,6 +8,8 @@ console.log('Starting up!');
 
 class ComfyRebase {
   storedNodeData = {};
+  diffData = {};
+
   constructor() {
     console.log("making thing")
   }
@@ -25,9 +27,7 @@ class ComfyRebase {
           node.widgets.map((widget) => [widget.name, widget.value])
         ),
       };
-      console.log('data for node', node.id, this.storedNodeData[node.id]);
     });
-
     console.log('Node values copied:', this.storedNodeData);
   }
 
@@ -53,8 +53,51 @@ class ComfyRebase {
         }
       }
     });
+  }
 
-    console.log('Node values pasted');
+  diffNodeValues() {
+    console.log("Calculating diff");
+    const graph = app.graph;
+    this.diffData = {};
+
+    graph._nodes.forEach((node) => {
+      if (!node.widgets_values || !this.storedNodeData[node.id]) return;
+
+      const storedValues = this.storedNodeData[node.id].values;
+      const currentValues = new Map(
+        node.widgets.map((widget) => [widget.name, widget.value])
+      );
+
+      const nodeDiff = {};
+      for (const [name, value] of currentValues.entries()) {
+        if (storedValues.has(name) && storedValues.get(name) !== value) {
+          console.log('Found diff for', node.id, name);
+          nodeDiff[name] = { old: storedValues.get(name), new: value };
+        }
+      }
+
+      if (Object.keys(nodeDiff).length > 0) {
+        this.diffData[node.id] = nodeDiff;
+      }
+    });
+
+    console.log("Diff calculated", this.diffData);
+  }
+
+  applyDiff() {
+    console.log("Applying diff");
+    const graph = app.graph;
+
+    graph._nodes.forEach((node) => {
+      if (!this.diffData[node.id]) return;
+
+      for (const widget of node.widgets) {
+        if (this.diffData[node.id][widget.name]) {
+          console.log('Applying diff to', node.id, widget.name);
+          widget.value = this.diffData[node.id][widget.name].new;
+        }
+      }
+    });
   }
 }
 
@@ -80,7 +123,26 @@ app.registerExtension({
       classList: 'comfyui-button primary',
       action: () => { rebased.pasteNodeValues() },
     });
-    const copyPasteButtons = new ComfyButtonGroup(copyButton, pasteButton);
+
+    const diffButton = new ComfyButton({
+      tooltip: 'Diff',
+      app,
+      enabled: true,
+      content: $el("div", "D"),
+      classList: 'comfyui-button primary',
+      action: () => { rebased.diffNodeValues() },
+    });
+
+    const applyDiffButton = new ComfyButton({
+      tooltip: 'Apply Diff',
+      app,
+      enabled: true,
+      content: $el("div", "T"),
+      classList: 'comfyui-button primary',
+      action: () => { rebased.applyDiff() },
+    });
+
+    const copyPasteButtons = new ComfyButtonGroup(copyButton, pasteButton, diffButton, applyDiffButton);
     app.menu.element.appendChild(copyPasteButtons.element);
   },
 });
