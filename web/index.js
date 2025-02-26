@@ -26,6 +26,7 @@ class ComfyRebase {
         values: new Map(
           node.widgets.map((widget) => [widget.name, widget.value])
         ),
+        mode: node.mode,
       };
     });
     console.log('Node values copied:', this.storedNodeData);
@@ -34,23 +35,22 @@ class ComfyRebase {
   pasteNodeValues() {
     console.log("my comfyrebased", this);
     const graph = app.graph;
-    const snd = this.storedNodeData;
-
     graph._nodes.forEach((node) => {
       if (
         node.widgets_values &&
-        snd[node.id] &&
-        snd[node.id].type === node.type
+        this.storedNodeData[node.id] &&
+        this.storedNodeData[node.id].type === node.type
       ) {
         console.log('pasting node id', node.id);
         for (const widget of node.widgets) {
-          const value = snd[node.id].values.get(widget.name);
+          const value = this.storedNodeData[node.id].values.get(widget.name);
           if (!value) {
             console.log('No value for ', node.id, widget.name);
           } else {
             widget.value = value;
           }
         }
+        node.mode = this.storedNodeData[node.id].mode;
       }
     });
   }
@@ -76,6 +76,11 @@ class ComfyRebase {
         }
       }
 
+      if (node.mode !== this.storedNodeData[node.id].mode) {
+        console.log('Found mode diff for', node.id);
+        nodeDiff["_MODE"] = { old: this.storedNodeData[node.id].mode, new: node.mode };
+      }
+
       if (Object.keys(nodeDiff).length > 0) {
         this.diffData[node.id] = nodeDiff;
       }
@@ -96,6 +101,10 @@ class ComfyRebase {
           console.log('Applying diff to', node.id, widget.name);
           widget.value = this.diffData[node.id][widget.name].new;
         }
+      }
+      if (this.diffData[node.id]["_MODE"]) {
+        console.log('Applying mode diff to', node.id);
+        node.mode = this.diffData[node.id]["_MODE"].new;
       }
     });
   }
