@@ -2,12 +2,29 @@ import { ComfyApp, ComfyApi, ComfyExtension } from '@comfyorg/comfyui-frontend-t
 import { LiteGraph } from '@comfyorg/litegraph';
 import * as jsondiffpatch from 'jsondiffpatch';
 
+// --- Define structure for ComfyUI's global API ---
+// Based on observations from index.js and common ComfyUI patterns
+// These might need adjustments based on the actual ComfyUI version/API
+declare global {
+  interface Window {
+    comfyAPI: {
+      app: { app: ComfyApp }; // Assuming app instance is nested here
+      ui: { $el: (tag: string, ...args: any[]) => HTMLElement }; // Basic type for $el
+      button: { ComfyButton: new (options: any) => any }; // Basic constructor type
+      buttonGroup: { ComfyButtonGroup: new (...buttons: any[]) => any }; // Basic constructor type
+    };
+    LiteGraph: typeof LiteGraph; // Make LiteGraph globally accessible if needed elsewhere
+  }
+}
 
-// XXX: These imports will NOT WORK in the browser. We will have to fix them.
-import { app } from './scripts/app';
-import { $el } from './scripts/ui';
-import { ComfyButtonGroup } from './scripts/ui/components/buttonGroup';
-import { ComfyButton } from './scripts/ui/components/button';
+// Access core objects via the global API
+const app = window.comfyAPI.app.app;
+const $el = window.comfyAPI.ui.$el;
+const ComfyButton = window.comfyAPI.button.ComfyButton;
+const ComfyButtonGroup = window.comfyAPI.buttonGroup.ComfyButtonGroup;
+// Ensure LiteGraph is accessible if used directly (it's often global)
+const LiteGraphInstance = window.LiteGraph || LiteGraph;
+
 
 // Create a jsondiffpatch instance
 // We can configure this later if needed (e.g., for ignoring certain properties)
@@ -21,10 +38,6 @@ const differ = jsondiffpatch.create({
   // },
 });
 
-// Remove unused interfaces
-// interface NodeData { ... }
-// interface DiffNodeData { ... }
-
 class ComfyRebase {
   // Store the full serialized graph state
   storedGraphState: any | null = null;
@@ -37,6 +50,7 @@ class ComfyRebase {
   }
 
   currentGraphState() {
+    // Use the globally accessed 'app'
     return JSON.stringify(app.graph.asSerialisable());
   }
 
@@ -44,6 +58,9 @@ class ComfyRebase {
   copyGraphState() {
     this.storedGraphState = this.currentGraphState();
     console.log('Graph state copied:', this.storedGraphState);
+    // Clear any previous diff when copying a new state
+    this.diffPatch = null;
+    console.log('Diff cleared.');
   }
 
   // Renamed from pasteNodeValues
@@ -57,7 +74,8 @@ class ComfyRebase {
     // Use app.loadGraphData to load the entire state
     // Ensure we handle potential errors during loading
     try {
-      await app.loadGraphData(this.storedGraphState);
+      // Use the globally accessed 'app'
+      await app.loadGraphData(JSON.parse(this.storedGraphState)); // Parse state before loading
       console.log('Graph state restored.');
     } catch (error) {
       console.error('Error restoring graph state:', error);
@@ -74,7 +92,8 @@ class ComfyRebase {
     }
 
     const currentState = this.currentGraphState();
-    this.diffPatch = differ.diff(this.storedGraphState, currentState);
+    // Parse stored state before diffing if it's stored as a string
+    this.diffPatch = differ.diff(JSON.parse(this.storedGraphState), JSON.parse(currentState));
 
     if (this.diffPatch) {
       console.log("Diff calculated:", this.diffPatch);
@@ -93,11 +112,11 @@ class ComfyRebase {
     }
 
     console.log("Applying patch...");
-    const patchedState = jsondiffpatch.patch(this.currentGraphState(), this.diffPatch);
+    // Parse states before patching if they are strings
+    const patchedState = jsondiffpatch.patch(JSON.parse(this.currentGraphState()), this.diffPatch);
     console.log("Patched state:", patchedState);
 
     try {
-      // Load the patched state
       await app.loadGraphData(patchedState);
       console.log("Diff applied successfully.");
     } catch (error) {
@@ -198,8 +217,9 @@ class ComfyRebase {
         this.dropModal = undefined;
       }
 
-      // Create an image node in the graph
-      const imageNode = LiteGraph.createNode("LoadImage");
+      // Create an image node in the graph using LiteGraphInstance
+      const imageNode = LiteGraphInstance.createNode("LoadImage");
+      // Use the globally accessed 'app'
       app.graph.add(imageNode);
 
       // Position the node in a visible area
@@ -242,6 +262,7 @@ class ComfyRebase {
           for (let i = 0; i < 3; i++) {
             console.log("Queueing prompt", i);
             // Ensure queuePrompt is awaited if it returns a promise
+            // Use the globally accessed 'app'
             await app.queuePrompt(-1, 1);
             // Would be nice to wait until app.#processingQueue is falsy
             await new Promise((resolve) => setTimeout(resolve, 300));
@@ -265,11 +286,12 @@ const extension: ComfyExtension = {
   init() {},
   async setup() {
     const rebased = new ComfyRebase();
+    // Use the globally accessed constructors/functions
     const copyButton = new ComfyButton({
       tooltip: 'Copy Graph State', // Updated tooltip
-      app,
+      app, // Pass the globally accessed app instance
       enabled: true,
-      content: $el("div", "C"),
+      content: $el("div", "C"), // Use the globally accessed $el
       classList: 'comfyui-button primary',
       action: () => { rebased.copyGraphState() }, // Updated action
     });
@@ -310,6 +332,7 @@ const extension: ComfyExtension = {
       action: () => { rebased.openImageDropModal() },
     });
 
+    // Use the globally accessed ComfyButtonGroup
     const copyPasteButtons = new ComfyButtonGroup(
       copyButton,
       pasteButton,
@@ -318,8 +341,10 @@ const extension: ComfyExtension = {
       dropImageButton
     );
 
+    // Use the globally accessed 'app'
     app.menu.element.appendChild(copyPasteButtons.element);
   },
 };
 
+// Use the globally accessed 'app'
 app.registerExtension(extension);
