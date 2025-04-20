@@ -1,8 +1,7 @@
-import { app } from '../../scripts/app.js';
-import { $el } from '../../scripts/ui.js';
-
-import { ComfyButtonGroup } from '../../scripts/ui/components/buttonGroup.js';
-import { ComfyButton } from '../../scripts/ui/components/button.js';
+const app = window.comfyAPI.app.app;
+const $el = window.comfyAPI.ui.$el;
+const ComfyButtonGroup = window.comfyAPI.buttonGroup.ComfyButtonGroup;
+const ComfyButton = window.comfyAPI.button.ComfyButton;
 
 console.log('Starting up!');
 
