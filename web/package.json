@@ -10,6 +10,7 @@
     "@comfyorg/comfyui-frontend-types": "^1.17.3",
     "@comfyorg/litegraph": "^0.13.6",
     "@types/node": "^22.13.4",
+    "jsondiffpatch": "^0.7.3",
     "typescript": "^5.7.3",
     "vite": "^6.1.0"
   },

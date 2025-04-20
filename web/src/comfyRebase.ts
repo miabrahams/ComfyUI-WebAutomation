@@ -1,114 +1,109 @@
-import { ComfyApp, ComfyApi } from '@comfyorg/comfyui-frontend-types';
+import { ComfyApp, ComfyApi, ComfyExtension } from '@comfyorg/comfyui-frontend-types';
+import { LiteGraph } from '@comfyorg/litegraph';
+import * as jsondiffpatch from 'jsondiffpatch';
 
-import { $el } from '../../scripts/ui.js';
 
-import { ComfyButtonGroup } from '../../scripts/ui/components/buttonGroup.js';
-import { ComfyButton } from '../../scripts/ui/components/button.js';
+// XXX: These imports will NOT WORK in the browser. We will have to fix them.
+import { app } from './scripts/app';
+import { $el } from './scripts/ui';
+import { ComfyButtonGroup } from './scripts/ui/components/buttonGroup';
+import { ComfyButton } from './scripts/ui/components/button';
 
-console.log('Starting up!');
+// Create a jsondiffpatch instance
+// We can configure this later if needed (e.g., for ignoring certain properties)
+const differ = jsondiffpatch.create({
+  // Example: Ignore node position changes if desired
+  // nodeDeltaFilter: function(context) {
+  //   if (context.path.includes('pos')) {
+  //     return false; // Don't diff position
+  //   }
+  //   return true;
+  // },
+});
+
+// Remove unused interfaces
+// interface NodeData { ... }
+// interface DiffNodeData { ... }
 
 class ComfyRebase {
-  storedNodeData = {};
-  diffData = {};
+  // Store the full serialized graph state
+  storedGraphState: any | null = null;
+  // Store the diff patch object
+  diffPatch: jsondiffpatch.Delta | null = null;
   dropModal: HTMLElement | undefined;
 
   constructor() {
-    console.log("making thing")
+    console.log("Initializing ComfyRebase with jsondiffpatch");
   }
 
-  copyNodeValues() {
-    const graph = app.graph;
-    this.storedNodeData = {};
-
-    graph._nodes.forEach((node) => {
-      if (!node.widgets_values) return;
-
-      this.storedNodeData[node.id] = {
-        type: node.type,
-        values: new Map(
-          node.widgets?.map((widget) => [widget.name, widget.value])
-        ),
-        mode: node.mode,
-      };
-    });
-    console.log('Node values copied:', this.storedNodeData);
+  currentGraphState() {
+    return JSON.stringify(app.graph.asSerialisable());
   }
 
-  pasteNodeValues() {
-    console.log("my comfyrebased", this);
-    const graph = app.graph;
-    graph._nodes.forEach((node) => {
-      if (
-        node.widgets_values &&
-        this.storedNodeData[node.id] &&
-        this.storedNodeData[node.id].type === node.type
-      ) {
-        console.log('pasting node id', node.id);
-        for (const widget of node.widgets) {
-          const value = this.storedNodeData[node.id].values.get(widget.name);
-          if (!value) {
-            console.log('No value for ', node.id, widget.name);
-          } else {
-            widget.value = value;
-          }
-        }
-        node.mode = this.storedNodeData[node.id].mode;
-      }
-    });
+  // Renamed from copyNodeValues
+  copyGraphState() {
+    this.storedGraphState = this.currentGraphState();
+    console.log('Graph state copied:', this.storedGraphState);
+  }
+
+  // Renamed from pasteNodeValues
+  async restoreGraphState() {
+    if (!this.storedGraphState) {
+      console.warn('No graph state stored to restore.');
+      alert('No graph state stored. Use "Copy" first.');
+      return;
+    }
+    console.log('Restoring graph state...');
+    // Use app.loadGraphData to load the entire state
+    // Ensure we handle potential errors during loading
+    try {
+      await app.loadGraphData(this.storedGraphState);
+      console.log('Graph state restored.');
+    } catch (error) {
+      console.error('Error restoring graph state:', error);
+      alert('Failed to restore graph state: ' + (error as Error).message);
+    }
   }
 
   diffNodeValues() {
-    console.log("Calculating diff");
-    const graph = app.graph;
-    this.diffData = {};
+    console.log("Calculating diff using jsondiffpatch");
+    if (!this.storedGraphState) {
+      console.warn('No stored graph state to diff against. Use "Copy" first.');
+      alert('No graph state stored. Use "Copy" first to set a base state.');
+      return;
+    }
 
-    graph._nodes.forEach((node) => {
-      if (!node.widgets_values || !this.storedNodeData[node.id]) return;
+    const currentState = this.currentGraphState();
+    this.diffPatch = differ.diff(this.storedGraphState, currentState);
 
-      const storedValues = this.storedNodeData[node.id].values;
-      const currentValues = new Map(
-        node.widgets.map((widget) => [widget.name, widget.value])
-      );
-
-      const nodeDiff = {};
-      for (const [name, value] of currentValues.entries()) {
-        if (storedValues.has(name) && storedValues.get(name) !== value) {
-          console.log('Found diff for', node.id, name);
-          nodeDiff[name] = { old: storedValues.get(name), new: value };
-        }
-      }
-
-      if (node.mode !== this.storedNodeData[node.id].mode) {
-        console.log('Found mode diff for', node.id);
-        nodeDiff["_MODE"] = { old: this.storedNodeData[node.id].mode, new: node.mode };
-      }
-
-      if (Object.keys(nodeDiff).length > 0) {
-        this.diffData[node.id] = nodeDiff;
-      }
-    });
-
-    console.log("Diff calculated", this.diffData);
+    if (this.diffPatch) {
+      console.log("Diff calculated:", this.diffPatch);
+    } else {
+      console.log("No differences found.");
+      alert("No differences found between the stored state and the current state.");
+    }
   }
 
-  applyDiff() {
-    console.log("Applying diff");
-    const graph = app.graph;
+  async applyDiff() {
+    console.log("Applying diff using jsondiffpatch");
+    if (!this.diffPatch) {
+      console.warn('No diff calculated to apply. Use "Diff" first.');
+      alert('No diff calculated. Use "Diff" first.');
+      return;
+    }
 
-    graph._nodes.forEach((node) => {
-      if (!this.diffData[node.id]) return;
+    console.log("Applying patch...");
+    const patchedState = jsondiffpatch.patch(this.currentGraphState(), this.diffPatch);
+    console.log("Patched state:", patchedState);
 
-      for (const widget of node.widgets) {
-        if (this.diffData[node.id][widget.name]) {
-          console.log('Applying diff to', node.id, widget.name);
-          widget.value = this.diffData[node.id][widget.name].new;
-        }
-      }
-      if (this.diffData[node.id]["_MODE"]) {
-        console.log('Applying mode diff to', node.id);
-        node.mode = this.diffData[node.id]["_MODE"].new;
-      }
-    });
+    try {
+      // Load the patched state
+      await app.loadGraphData(patchedState);
+      console.log("Diff applied successfully.");
+    } catch (error) {
+      console.error('Error applying diff:', error);
+      alert('Failed to apply diff: ' + (error as Error).message);
+    }
   }
 
   openImageDropModal() {
@@ -154,7 +149,7 @@ class ComfyRebase {
     closeButton.style.cursor = 'pointer';
     closeButton.addEventListener('click', () => {
       document.body.removeChild(this.dropModal);
-      this.dropModal = null;
+      this.dropModal = undefined;
     });
 
     // Setup drag and drop events
@@ -174,8 +169,8 @@ class ComfyRebase {
       dropTarget.style.backgroundColor = 'rgba(30,30,30,0.7)';
       dropTarget.style.border = '3px dashed #888';
 
-      const files = e.dataTransfer.files;
-      if (files.length > 0) {
+      const files = e.dataTransfer?.files;
+      if (files && files.length > 0) {
         const file = files[0];
 
         // Check if it's an image
@@ -193,14 +188,14 @@ class ComfyRebase {
     document.body.appendChild(this.dropModal);
   }
 
-  async handleImageDrop(file) {
+  async handleImageDrop(file: File) {
     console.log('Loading image:', file.name);
 
     try {
       // Close the modal
       if (this.dropModal) {
         document.body.removeChild(this.dropModal);
-        this.dropModal = null;
+        this.dropModal = undefined;
       }
 
       // Create an image node in the graph
@@ -228,16 +223,25 @@ class ComfyRebase {
           console.log('Image loaded successfully');
 
           // Apply diff if exists
-          if (Object.keys(this.diffData).length > 0) {
-            this.applyDiff();
+          // This will apply the last calculated diff onto the original stored state
+          // and load that result, potentially overwriting the newly added LoadImage node
+          // if it wasn't part of the state when the diff was *calculated*.
+          // This behavior might need refinement depending on the desired workflow.
+          // Perhaps the diff should be applied *before* adding the image node?
+          // Or the diff logic needs to be smarter about integrating the new node.
+          // For now, keeping the original flow: load image, then apply diff.
+          if (this.diffPatch) {
+             console.log("Applying stored diff after image load...");
+             await this.applyDiff(); // Make sure applyDiff is async if loadGraphData is
           } else {
             console.log('No diff to apply');
           }
 
-          // Wait 300ms and then queue three prompts.
+          // Wait and queue prompts
           await new Promise((resolve) => setTimeout(resolve, 1000));
           for (let i = 0; i < 3; i++) {
             console.log("Queueing prompt", i);
+            // Ensure queuePrompt is awaited if it returns a promise
             await app.queuePrompt(-1, 1);
             // Would be nice to wait until app.#processingQueue is falsy
             await new Promise((resolve) => setTimeout(resolve, 300));
@@ -245,40 +249,42 @@ class ComfyRebase {
         }
       } else {
         console.error('Failed to upload image:', response.statusText);
+        // TODO: Find toast alternative
         alert('Failed to upload image');
       }
     } catch (error) {
       console.error('Error processing image:', error);
-      alert('Error processing image: ' + error.message);
+      // TODO: Find toast alternative
+      alert('Error processing image: ' + (error as Error).message);
     }
   }
 }
 
-app.registerExtension({
+const extension: ComfyExtension = {
   name: 'ComfyUI.Rebase',
   init() {},
   async setup() {
     const rebased = new ComfyRebase();
     const copyButton = new ComfyButton({
-      tooltip: 'Copy',
+      tooltip: 'Copy Graph State', // Updated tooltip
       app,
       enabled: true,
       content: $el("div", "C"),
       classList: 'comfyui-button primary',
-      action: () => { rebased.copyNodeValues() },
+      action: () => { rebased.copyGraphState() }, // Updated action
     });
 
     const pasteButton = new ComfyButton({
-      textContent: 'Paste Node Values',
+      tooltip: 'Restore Graph State', // Updated tooltip
       app,
       enabled: true,
       content: $el("div", "P"),
       classList: 'comfyui-button primary',
-      action: () => { rebased.pasteNodeValues() },
+      action: () => { rebased.restoreGraphState() },
     });
 
     const diffButton = new ComfyButton({
-      tooltip: 'Diff',
+      tooltip: 'Diff Current vs Copied State',
       app,
       enabled: true,
       content: $el("div", "D"),
@@ -287,10 +293,10 @@ app.registerExtension({
     });
 
     const applyDiffButton = new ComfyButton({
-      tooltip: 'Apply Diff',
+      tooltip: 'Apply Diff to Current Graph',
       app,
       enabled: true,
-      content: $el("div", "T"),
+      content: $el("div", "A"),
       classList: 'comfyui-button primary',
       action: () => { rebased.applyDiff() },
     });
@@ -314,4 +320,6 @@ app.registerExtension({
 
     app.menu.element.appendChild(copyPasteButtons.element);
   },
-});
+};
+
+app.registerExtension(extension);
