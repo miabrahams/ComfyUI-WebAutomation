@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 import os
 from aiohttp import web
@@ -45,9 +49,9 @@ browser_app.add_routes([
 server.PromptServer.instance.app.add_subapp("/browser/", browser_app)
 """
 
-WEB_DIRECTORY = "./web"
+WEB_DIRECTORY = "./web/js"
 NODE_CLASS_MAPPINGS = { }
 NODE_DISPLAY_NAME_MAPPINGS = { }
 NODE_CATEGORY_MAPPINGS = { }
 
-print(":3")
+logger.info(":3")

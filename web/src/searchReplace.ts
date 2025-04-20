@@ -1,4 +1,5 @@
-import { app } from '../../scripts/app.js';
+import { ComfyApp, ComfyApi } from '@comfyorg/comfyui-frontend-types';
+
 import { $el } from '../../scripts/ui.js';
 
 import { ComfyButtonGroup } from '../../scripts/ui/components/buttonGroup.js';
@@ -9,6 +10,7 @@ console.log('Starting up!');
 class ComfyRebase {
   storedNodeData = {};
   diffData = {};
+  dropModal: HTMLElement | undefined;
 
   constructor() {
     console.log("making thing")
@@ -24,7 +26,7 @@ class ComfyRebase {
       this.storedNodeData[node.id] = {
         type: node.type,
         values: new Map(
-          node.widgets.map((widget) => [widget.name, widget.value])
+          node.widgets?.map((widget) => [widget.name, widget.value])
         ),
         mode: node.mode,
       };
@@ -227,10 +229,18 @@ class ComfyRebase {
 
           // Apply diff if exists
           if (Object.keys(this.diffData).length > 0) {
-            console.log('Applying stored diff');
             this.applyDiff();
           } else {
             console.log('No diff to apply');
+          }
+
+          // Wait 300ms and then queue three prompts.
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          for (let i = 0; i < 3; i++) {
+            console.log("Queueing prompt", i);
+            await app.queuePrompt(-1, 1);
+            // Would be nice to wait until app.#processingQueue is falsy
+            await new Promise((resolve) => setTimeout(resolve, 300));
           }
         }
       } else {
