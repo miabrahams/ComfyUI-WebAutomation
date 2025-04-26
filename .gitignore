@@ -5,6 +5,7 @@ ComfyUI
 
 web/src/scripts/
 web/js/*
+data
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
