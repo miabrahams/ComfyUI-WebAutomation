@@ -369,6 +369,16 @@ class ComfyRebase {
       alert('Error processing image: ' + (error as Error).message);
     }
   }
+
+  async openImageBrowser() {
+    try {
+      const res = await fetch('/rebase/data/folders');
+      const data = await res.json();
+      console.log('Available folders:', data.folders);
+    } catch(e) {
+      console.error('Failed to load folders', e);
+    }
+  }
 }
 
 const extension: ComfyExtension = {
@@ -426,6 +436,16 @@ const extension: ComfyExtension = {
       action: () => { rebased.openImageDropModal() },
     });
 
+    // New: Browse Images button
+    const browseButton = new ComfyButton({
+      tooltip: 'Browse Images',
+      app,
+      enabled: true,
+      content: $el("div","📁"),
+      classList: 'comfyui-button primary',
+      action: () => { rebased.openImageBrowser() },
+    });
+
     // Update ButtonGroup to include all buttons
     const copyPasteButtons = new ComfyButtonGroup(
       copyButton,
@@ -436,6 +456,7 @@ const extension: ComfyExtension = {
     );
 
     app.menu.element.appendChild(copyPasteButtons.element);
+    app.menu.element.appendChild(browseButton.element);
   },
 };
 
