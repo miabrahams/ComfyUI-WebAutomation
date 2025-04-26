@@ -2,6 +2,7 @@ import { ComfyApp, ComfyApi, ComfyExtension } from '@comfyorg/comfyui-frontend-t
 import { LGraphEventMode, LiteGraph, LGraphNode } from '@comfyorg/litegraph'; // Import LGraphNode
 
 import { DropModal } from './dropModal';
+import { EvalBrowser } from './evalBrowser'
 
 // --- Define structure for ComfyUI's global API ---
 // Based on observations from index.js and common ComfyUI patterns
@@ -46,11 +47,13 @@ class ComfyRebase {
   diffData: Record<string, DiffNodeData> = {};
 
   dropModal: DropModal;
+  evalBrowser: EvalBrowser
 
   constructor() {
     // Update log message if desired
     console.log("Initializing ComfyRebase (Value Copy/Paste + Diff)");
     this.dropModal = new DropModal(this)
+    this.evalBrowser = new EvalBrowser()
   }
 
   // Reimplement copyNodeValues based on original JS
@@ -226,14 +229,9 @@ class ComfyRebase {
     // this.diffData = {};
   }
 
-  async openEvalBrowser() {
-    try {
-      const res = await fetch('/rebase/data/folders');
-      const data = await res.json();
-      console.log('Available folders:', data.folders);
-    } catch(e) {
-      console.error('Failed to load folders', e);
-    }
+  // replace old openEvalBrowser
+  openEvalBrowser() {
+    this.evalBrowser.openModal()
   }
 }
 
@@ -292,15 +290,15 @@ const extension: ComfyExtension = {
       action: () => { rebased.dropModal.openImageDropModal() },
     });
 
-    // New: Browse Images button
+    // New: Browse Images button (uses openEvalBrowser)
     const browseButton = new ComfyButton({
       tooltip: 'Browse Images',
       app,
       enabled: true,
-      content: $el("div","📁"),
+      content: $el('div', '📁'),
       classList: 'comfyui-button primary',
       action: () => { rebased.openEvalBrowser() },
-    });
+    })
 
     // Update ButtonGroup to include all buttons
     const copyPasteButtons = new ComfyButtonGroup(
