@@ -22,8 +22,7 @@ const app = window.comfyAPI.app.app;
 const $el = window.comfyAPI.ui.$el;
 const ComfyButton = window.comfyAPI.button.ComfyButton;
 const ComfyButtonGroup = window.comfyAPI.buttonGroup.ComfyButtonGroup;
-// Ensure LiteGraph is accessible if used directly (it's often global)
-const LiteGraphInstance = window.LiteGraph || LiteGraph;
+const LiteGraphInstance = window.LiteGraph;
 
 
 // Create a jsondiffpatch instance
@@ -117,6 +116,7 @@ class ComfyRebase {
     console.log("Patched state:", patchedState);
 
     try {
+      // @ts-expect-error skip zod
       await app.loadGraphData(patchedState);
       console.log("Diff applied successfully.");
     } catch (error) {
