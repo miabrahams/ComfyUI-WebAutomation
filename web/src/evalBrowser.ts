@@ -1,4 +1,3 @@
-const app = window.comfyAPI.app.app
 import { type EvalRunner } from './evalRunner'
 
 interface ImageItem {

@@ -1,9 +1,5 @@
 const LiteGraphInstance = window.LiteGraph;
-
-interface Differ {
-  diffData: Record<string, any>
-  applyDiff: Function
-}
+import { type Differ } from './types'
 
 export class DropModal {
   dropModal: HTMLElement | undefined;

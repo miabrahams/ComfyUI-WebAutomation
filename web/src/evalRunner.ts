@@ -3,6 +3,8 @@
  * Manages sequential processing of workflows with batch execution
  */
 
+import { type Differ } from './types'
+
 const app = window.comfyAPI.app.app;
 
 interface ImageItem {
@@ -17,10 +19,12 @@ export class EvalRunner {
   private runsPerImage: number = 4;
   private graphConfiguredResolver: (() => void) | null = null;
   private statusElement: HTMLElement | null = null;
+  private differ: Differ;
 
-  constructor() {
+  constructor(differ: Differ) {
     // Create a status display element
     this.createStatusElement();
+    this.differ = differ;
   }
 
   // called by comfyRebase.afterConfigureGraph()
@@ -157,22 +161,14 @@ export class EvalRunner {
       await this.waitForGraphConfigured();
 
       // Apply any diffs if available
-      const rebaseExtension = app.extensions['ComfyUI.Rebase'];
-      if (rebaseExtension?.instance?.applyDiff) {
-        console.log('Applying diff to workflow');
-        rebaseExtension.instance.applyDiff();
-      }
+      console.log('Applying diff to workflow');
+      this.differ.applyDiff();
 
       // Wait a moment for the diff to be applied
       await new Promise(resolve => setTimeout(resolve, 500));
 
       // Run the workflow multiple times
       await this.runBatch();
-
-      // Process next item after a short delay
-      setTimeout(() => {
-        this.processNextItem();
-      }, 1000);
 
     } catch (error) {
       console.error(`Error processing ${currentItem.filename}:`, error);
@@ -183,12 +179,13 @@ export class EvalRunner {
         detail: `Error with ${currentItem.filename}: ${(error as Error).message}`,
         life: 3000,
       });
-
-      // Continue with next item
-      setTimeout(() => {
-        this.processNextItem();
-      }, 1000);
     }
+
+    // Process next item after a short delay
+    setTimeout(() => {
+      this.processNextItem();
+    }, 1000);
+
   }
 
   private waitForGraphConfigured(): Promise<void> {
@@ -220,12 +217,12 @@ export class EvalRunner {
   private async runBatch(): Promise<void> {
     console.log(`Running workflow batch of size ${this.runsPerImage}`);
     try {
-      // simplified: submit all runs in one batch
-      await app.queuePrompt(-1, this.runsPerImage);
+      await app.queuePrompt(0, this.runsPerImage);
     } catch (error) {
       console.error('Error queueing prompt:', error);
+      throw error;
     }
-    // brief pause after submission
+    // brief pause
     await new Promise(resolve => setTimeout(resolve, 500));
   }
 }

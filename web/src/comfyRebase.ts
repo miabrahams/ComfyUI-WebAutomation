@@ -4,6 +4,7 @@ import { LGraphEventMode, LiteGraph, LGraphNode } from '@comfyorg/litegraph'; //
 import { DropModal } from './dropModal';
 import { EvalBrowser } from './evalBrowser';
 import { EvalRunner } from './evalRunner';
+import { type Differ } from './types'
 
 // --- Define structure for ComfyUI's global API ---
 // Based on observations from index.js and common ComfyUI patterns
@@ -41,10 +42,8 @@ interface DiffNodeData {
   };
 }
 
-class ComfyRebase {
-  // Restore original state variable
+class ComfyRebase implements Differ {
   storedNodeData: Record<string, NodeData> = {};
-  // Add diffData state
   diffData: Record<string, DiffNodeData> = {};
 
   dropModal: DropModal;
@@ -55,17 +54,15 @@ class ComfyRebase {
     // Update log message if desired
     console.log("Initializing ComfyRebase (Value Copy/Paste + Diff + Eval)");
     this.dropModal = new DropModal(this);
-    this.evalRunner = new EvalRunner();
+    this.evalRunner = new EvalRunner(this);
     this.evalBrowser = new EvalBrowser(this.evalRunner);
   }
 
-  // Reimplement copyNodeValues based on original JS
   copyNodeValues() {
     const graph = app.graph;
     this.storedNodeData = {};
 
     graph._nodes.forEach((node) => {
-      // Ensure widgets exist and node has an id
       if (!node.widgets || typeof node.id === 'undefined') return;
 
       // Store widget values if they exist
@@ -86,12 +83,8 @@ class ComfyRebase {
       };
     });
     console.log('Node values copied:', this.storedNodeData);
-    // Clear diff data when copying new values
-    this.diffData = {};
-    console.log('Diff data cleared.');
   }
 
-  // Reimplement pasteNodeValues based on original JS
   pasteNodeValues() {
     const graph = app.graph;
     graph._nodes.forEach((node) => {
@@ -115,21 +108,18 @@ class ComfyRebase {
             console.log('No stored value for ', node.id, widget.name);
           }
         }
-        // Restore mode
         if (typeof storedData.mode !== 'undefined') {
             node.mode = storedData.mode;
         }
       }
     });
-    // Trigger redraw or update if necessary
     app.graph.setDirtyCanvas(true, true);
   }
 
-  // Add diffNodeValues based on comfyRebase_orig.js
   diffNodeValues() {
     console.log('Calculating diff (widget/mode based)');
     const graph = app.graph;
-    this.diffData = {}; // Clear previous diff
+    this.diffData = {};
 
     graph._nodes.forEach((node) => {
       if (typeof node.id === 'undefined') return; // Skip nodes without ID
