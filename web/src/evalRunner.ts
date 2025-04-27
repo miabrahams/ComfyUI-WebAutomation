@@ -3,9 +3,24 @@
  * Manages sequential processing of workflows with batch execution
  */
 
+import { exec } from 'child_process';
 import { type Differ } from './types'
+import { LGraphNode } from "@comfyorg/litegraph"
 
 const app = window.comfyAPI.app.app;
+
+export function executeWidgetsCallback(
+  nodes: LGraphNode[],
+  callbackName: 'onRemove' | 'beforeQueued' | 'afterQueued'
+) {
+  for (const node of nodes) {
+    for (const widget of node.widgets ?? []) {
+      widget[callbackName]?.()
+    }
+  }
+}
+
+
 
 interface ImageItem {
   filename: string;
@@ -55,6 +70,7 @@ export class EvalRunner {
   }
 
   private updateStatus(message: string) {
+    console.log("eval status: ", message)
     if (this.statusElement) {
       this.statusElement.innerHTML = message;
       this.statusElement.style.display = 'block';
@@ -90,7 +106,7 @@ export class EvalRunner {
       life: 3000,
     });
 
-    this.updateStatus(`Starting batch evaluation...<br>Total images: ${images.length}<br>Runs per image: ${batchSize}`);
+    this.updateStatus(`Starting batch evaluation...\nTotal images: ${images.length}\nRuns per image: ${batchSize}`);
 
     try {
       await this.processNextItem();
@@ -103,6 +119,7 @@ export class EvalRunner {
         life: 5000,
       });
     } finally {
+      console.log("startEvaluation finished!")
       this.isRunning = false;
       setTimeout(() => this.hideStatus(), 3000);
     }
@@ -111,8 +128,8 @@ export class EvalRunner {
   async cancelEvaluation() {
     if (!this.isRunning) return;
 
-    this.currentQueue = [];
     this.isRunning = false;
+    this.currentQueue = [];
 
     app.extensionManager.toast.add({
       severity: 'info',
@@ -126,6 +143,7 @@ export class EvalRunner {
   }
 
   private async processNextItem() {
+    console.log("processNextItem called", this.isRunning, this.currentQueue)
     if (!this.isRunning || this.currentQueue.length === 0) {
       // All done
       app.extensionManager.toast.add({
@@ -160,6 +178,9 @@ export class EvalRunner {
       // Wait for graph to be configured
       await this.waitForGraphConfigured();
 
+      // Randomize seed. Could make this an option later
+      executeWidgetsCallback(app.graph.nodes, 'beforeQueued')
+
       // Apply any diffs if available
       console.log('Applying diff to workflow');
       this.differ.applyDiff();
@@ -179,13 +200,11 @@ export class EvalRunner {
         detail: `Error with ${currentItem.filename}: ${(error as Error).message}`,
         life: 3000,
       });
+    } finally {
+      // Process next item after a short delay
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      await this.processNextItem()
     }
-
-    // Process next item after a short delay
-    setTimeout(() => {
-      this.processNextItem();
-    }, 1000);
-
   }
 
   private waitForGraphConfigured(): Promise<void> {
