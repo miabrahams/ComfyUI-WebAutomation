@@ -1,4 +1,5 @@
 const app = window.comfyAPI.app.app
+import { type EvalRunner } from './evalRunner'
 
 interface ImageItem {
   filename: string
@@ -11,6 +12,13 @@ export class EvalBrowser {
   private escListener?: (e: KeyboardEvent) => void
   private currentFolder?: string
   private currentType: string = 'evals'
+  private batchSize: number = 4
+  private selectedImages: ImageItem[] = []
+  private evalRunner: EvalRunner
+
+  constructor(runner: EvalRunner) {
+    this.evalRunner = runner;
+  }
 
   async openModal() {
     // Remove existing modal if it exists
@@ -87,6 +95,8 @@ export class EvalBrowser {
       window.removeEventListener('keydown', this.escListener)
       this.escListener = undefined
     }
+    // Clear selected images when closing
+    this.selectedImages = []
   }
 
   private async loadFolders(container: HTMLElement) {
@@ -176,6 +186,71 @@ export class EvalBrowser {
         return
       }
 
+      // Add batch controls
+      const controlsDiv = document.createElement('div')
+      controlsDiv.style.marginBottom = '15px'
+      controlsDiv.style.display = 'flex'
+      controlsDiv.style.alignItems = 'center'
+      controlsDiv.style.gap = '10px'
+
+      // Batch size input
+      const batchLabel = document.createElement('label')
+      batchLabel.textContent = 'Runs per image:'
+      batchLabel.style.marginRight = '5px'
+
+      const batchInput = document.createElement('input')
+      batchInput.type = 'number'
+      batchInput.min = '1'
+      batchInput.max = '10'
+      batchInput.value = String(this.batchSize)
+      batchInput.style.width = '50px'
+      batchInput.onchange = (e) => {
+        this.batchSize = parseInt((e.target as HTMLInputElement).value) || 4
+      }
+
+      // Run Eval button
+      const runEvalButton = document.createElement('button')
+      runEvalButton.textContent = '▶️ Run Evaluation'
+      runEvalButton.style.marginLeft = '10px'
+      runEvalButton.style.backgroundColor = '#4CAF50'
+      runEvalButton.style.color = 'white'
+      runEvalButton.style.border = 'none'
+      runEvalButton.style.padding = '8px 16px'
+      runEvalButton.style.borderRadius = '4px'
+      runEvalButton.onclick = () => this.runEvaluation()
+
+      controlsDiv.appendChild(batchLabel)
+      controlsDiv.appendChild(batchInput)
+      controlsDiv.appendChild(runEvalButton)
+      container.appendChild(controlsDiv)
+
+      // Selection controls
+      const selectionControls = document.createElement('div')
+      selectionControls.style.marginBottom = '10px'
+
+      const selectAllBtn = document.createElement('button')
+      selectAllBtn.textContent = 'Select All'
+      selectAllBtn.style.marginRight = '10px'
+      selectAllBtn.onclick = () => {
+        this.selectedImages = [...data.images]
+        // Update UI to show all as selected
+        const checkboxes = container.querySelectorAll('.image-checkbox input') as NodeListOf<HTMLInputElement>
+        checkboxes.forEach(cb => cb.checked = true)
+      }
+
+      const clearSelectionBtn = document.createElement('button')
+      clearSelectionBtn.textContent = 'Clear Selection'
+      clearSelectionBtn.onclick = () => {
+        this.selectedImages = []
+        // Update UI to show none as selected
+        const checkboxes = container.querySelectorAll('.image-checkbox input') as NodeListOf<HTMLInputElement>
+        checkboxes.forEach(cb => cb.checked = false)
+      }
+
+      selectionControls.appendChild(selectAllBtn)
+      selectionControls.appendChild(clearSelectionBtn)
+      container.appendChild(selectionControls)
+
       // Create grid for images
       const grid = document.createElement('div')
       grid.style.display = 'grid'
@@ -196,6 +271,36 @@ export class EvalBrowser {
         thumbnail.style.width = '100%'
         thumbnail.style.height = '150px'
         thumbnail.style.objectFit = 'cover'
+
+        // Add checkbox for selection
+        const checkboxWrapper = document.createElement('div')
+        checkboxWrapper.className = 'image-checkbox'
+        checkboxWrapper.style.position = 'absolute'
+        checkboxWrapper.style.top = '5px'
+        checkboxWrapper.style.left = '5px'
+        checkboxWrapper.style.backgroundColor = 'rgba(0,0,0,0.6)'
+        checkboxWrapper.style.borderRadius = '3px'
+        checkboxWrapper.style.padding = '3px'
+
+        const checkbox = document.createElement('input')
+        checkbox.type = 'checkbox'
+        checkbox.title = 'Select for batch evaluation'
+        checkbox.onclick = (e) => {
+          e.stopPropagation() // Prevent image click when clicking checkbox
+
+          if (checkbox.checked) {
+            // Add to selection if not already there
+            if (!this.selectedImages.includes(img)) {
+              this.selectedImages.push(img)
+            }
+          } else {
+            // Remove from selection
+            this.selectedImages = this.selectedImages.filter(i => i.filename !== img.filename)
+          }
+        }
+
+        checkboxWrapper.appendChild(checkbox)
+        item.appendChild(checkboxWrapper)
 
         // Add workflow badge if available
         if (img.has_workflow) {
@@ -222,7 +327,18 @@ export class EvalBrowser {
         caption.style.backgroundColor = 'rgba(0,0,0,0.6)'
 
         // Handle click
-        item.onclick = () => this.loadWorkflow(img)
+        item.onclick = () => {
+          // Toggle selection when clicking the item
+          checkbox.checked = !checkbox.checked
+
+          if (checkbox.checked) {
+            if (!this.selectedImages.includes(img)) {
+              this.selectedImages.push(img)
+            }
+          } else {
+            this.selectedImages = this.selectedImages.filter(i => i.filename !== img.filename)
+          }
+        }
 
         item.appendChild(thumbnail)
         item.appendChild(caption)
@@ -234,6 +350,21 @@ export class EvalBrowser {
     } catch (error) {
       container.innerHTML = `<h3>Error: ${(error as Error).message}</h3>`
       console.error('Failed to load images:', error)
+    }
+  }
+
+  private runEvaluation() {
+    if (this.selectedImages.length === 0) {
+      alert('Please select at least one image for evaluation')
+      return
+    }
+
+    // Close modal and start evaluation
+    this.closeModal()
+
+    // Start the evaluation process
+    if (this.evalRunner) {
+      this.evalRunner.startEvaluation(this.selectedImages, this.batchSize)
     }
   }
 

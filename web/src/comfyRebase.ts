@@ -2,7 +2,8 @@ import { ComfyApp, ComfyApi, ComfyExtension } from '@comfyorg/comfyui-frontend-t
 import { LGraphEventMode, LiteGraph, LGraphNode } from '@comfyorg/litegraph'; // Import LGraphNode
 
 import { DropModal } from './dropModal';
-import { EvalBrowser } from './evalBrowser'
+import { EvalBrowser } from './evalBrowser';
+import { EvalRunner } from './evalRunner';
 
 // --- Define structure for ComfyUI's global API ---
 // Based on observations from index.js and common ComfyUI patterns
@@ -47,13 +48,15 @@ class ComfyRebase {
   diffData: Record<string, DiffNodeData> = {};
 
   dropModal: DropModal;
-  evalBrowser: EvalBrowser
+  evalBrowser: EvalBrowser;
+  evalRunner: EvalRunner;
 
   constructor() {
     // Update log message if desired
-    console.log("Initializing ComfyRebase (Value Copy/Paste + Diff)");
-    this.dropModal = new DropModal(this)
-    this.evalBrowser = new EvalBrowser()
+    console.log("Initializing ComfyRebase (Value Copy/Paste + Diff + Eval)");
+    this.dropModal = new DropModal(this);
+    this.evalRunner = new EvalRunner();
+    this.evalBrowser = new EvalBrowser(this.evalRunner);
   }
 
   // Reimplement copyNodeValues based on original JS
@@ -238,15 +241,18 @@ class ComfyRebase {
 
   // replace old openEvalBrowser
   openEvalBrowser() {
-    this.evalBrowser.openModal()
+    this.evalBrowser.openModal();
   }
 }
+
+let rebased: ComfyRebase;
 
 const extension: ComfyExtension = {
   name: 'ComfyUI.Rebase',
   init() {},
   async setup() {
-    const rebased = new ComfyRebase();
+    rebased = new ComfyRebase();
+
     // Copy Button
     const copyButton = new ComfyButton({
       tooltip: 'Copy Node Values',
@@ -321,6 +327,7 @@ const extension: ComfyExtension = {
   },
   async afterConfigureGraph() {
     console.log("REBASE: afterConfigureGraph");
+    rebased.evalRunner.notifyGraphConfigured();
   }
 
 };
