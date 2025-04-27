@@ -124,7 +124,7 @@ class ComfyRebase {
 
   // Add diffNodeValues based on comfyRebase_orig.js
   diffNodeValues() {
-    console.log("Calculating diff (widget/mode based)");
+    console.log('Calculating diff (widget/mode based)');
     const graph = app.graph;
     this.diffData = {}; // Clear previous diff
 
@@ -137,16 +137,16 @@ class ComfyRebase {
 
       // Ensure type matches before diffing
       if (storedData.type !== node.type) {
-          console.log(`Node ${node.id} type mismatch, skipping diff.`);
-          return;
+        console.log(`Node ${node.id} type mismatch, skipping diff.`);
+        return;
       }
 
       const storedValues = storedData.values;
       const currentValues = new Map<string, any>();
-      node.widgets.forEach(widget => {
-          if (widget.name) {
-              currentValues.set(widget.name, widget.value);
-          }
+      node.widgets.forEach((widget) => {
+        if (widget.name) {
+          currentValues.set(widget.name, widget.value);
+        }
       });
 
       const nodeDiff: DiffNodeData = {};
@@ -167,7 +167,7 @@ class ComfyRebase {
       // Diff mode
       if (node.mode !== storedData.mode) {
         console.log('Found mode diff for', node.id);
-        nodeDiff["_MODE"] = { old: storedData.mode, new: node.mode };
+        nodeDiff['_MODE'] = { old: storedData.mode, new: node.mode };
       }
 
       if (Object.keys(nodeDiff).length > 0) {
@@ -176,10 +176,15 @@ class ComfyRebase {
     });
 
     if (Object.keys(this.diffData).length > 0) {
-        console.log("Diff calculated", this.diffData);
+      console.log('Diff calculated', this.diffData);
     } else {
-        console.log("No differences found.");
-        // TODO: Look up alert in ComfyUI API
+      console.log('No differences found.');
+      app.extensionManager.toast.add({
+        severity: 'info',
+        summary: 'No diff found',
+        detail: 'Could not identify diff from saved',
+        life: 3000,
+      });
     }
   }
 
@@ -188,8 +193,12 @@ class ComfyRebase {
     console.log("Applying diff (widget/mode based)");
     if (Object.keys(this.diffData).length === 0) {
         console.warn("No diff data to apply.");
-        // TODO: Look up alert in ComfyUI API
-        // alert("No diff data to apply. Use 'Diff' first.");
+        app.extensionManager.toast.add({
+          severity: 'warn',
+          summary: 'Apply failed',
+          detail: 'No diff data to apply.',
+          life: 3000,
+        });
         return;
     }
 
@@ -225,8 +234,6 @@ class ComfyRebase {
     } else {
         console.log("Diff data existed, but no matching nodes/widgets found to apply changes.");
     }
-    // Optional: Clear diff after applying?
-    // this.diffData = {};
   }
 
   // replace old openEvalBrowser
