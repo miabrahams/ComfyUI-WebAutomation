@@ -13,7 +13,8 @@ export class EvalBrowser {
   private currentFolder?: string
   private currentType: string = 'evals'
   private batchSize: number = 4
-  private selectedImages: ImageItem[] = []
+  private selectedImages: Set<ImageItem> = new Set()
+  private currentImages?: ImageItem[]
   private evalRunner: EvalRunner
 
   constructor(runner: EvalRunner) {
@@ -96,7 +97,7 @@ export class EvalBrowser {
       this.escListener = undefined
     }
     // Clear selected images when closing
-    this.selectedImages = []
+    this.selectedImages.clear()
   }
 
   private async loadFolders(container: HTMLElement) {
@@ -165,6 +166,7 @@ export class EvalBrowser {
       }
 
       const data = await res.json()
+      this.currentImages = data.images  // track current list
 
       // Add back button
       const backButton = document.createElement('button')
@@ -232,19 +234,17 @@ export class EvalBrowser {
       selectAllBtn.textContent = 'Select All'
       selectAllBtn.style.marginRight = '10px'
       selectAllBtn.onclick = () => {
-        this.selectedImages = [...data.images]
-        // Update UI to show all as selected
-        const checkboxes = container.querySelectorAll('.image-checkbox input') as NodeListOf<HTMLInputElement>
-        checkboxes.forEach(cb => cb.checked = true)
+        this.selectedImages = new Set(this.currentImages)
+        container.querySelectorAll('.image-checkbox input')
+          .forEach((cb: any) => cb.checked = true)
       }
 
       const clearSelectionBtn = document.createElement('button')
       clearSelectionBtn.textContent = 'Clear Selection'
       clearSelectionBtn.onclick = () => {
-        this.selectedImages = []
-        // Update UI to show none as selected
-        const checkboxes = container.querySelectorAll('.image-checkbox input') as NodeListOf<HTMLInputElement>
-        checkboxes.forEach(cb => cb.checked = false)
+        this.selectedImages.clear()
+        container.querySelectorAll('.image-checkbox input')
+          .forEach((cb: any) => cb.checked = false)
       }
 
       selectionControls.appendChild(selectAllBtn)
@@ -285,17 +285,16 @@ export class EvalBrowser {
         const checkbox = document.createElement('input')
         checkbox.type = 'checkbox'
         checkbox.title = 'Select for batch evaluation'
+        checkbox.checked = this.selectedImages.has(img)
         checkbox.onclick = (e) => {
           e.stopPropagation() // Prevent image click when clicking checkbox
 
           if (checkbox.checked) {
             // Add to selection if not already there
-            if (!this.selectedImages.includes(img)) {
-              this.selectedImages.push(img)
-            }
+            this.selectedImages.add(img)
           } else {
             // Remove from selection
-            this.selectedImages = this.selectedImages.filter(i => i.filename !== img.filename)
+            this.selectedImages.delete(img)
           }
         }
 
@@ -332,11 +331,9 @@ export class EvalBrowser {
           checkbox.checked = !checkbox.checked
 
           if (checkbox.checked) {
-            if (!this.selectedImages.includes(img)) {
-              this.selectedImages.push(img)
-            }
+            this.selectedImages.add(img)
           } else {
-            this.selectedImages = this.selectedImages.filter(i => i.filename !== img.filename)
+            this.selectedImages.delete(img)
           }
         }
 
@@ -354,20 +351,18 @@ export class EvalBrowser {
   }
 
   private runEvaluation() {
-    if (this.selectedImages.length === 0) {
+    console.log('runEvaluation → selectedImages:', this.selectedImages)
+    if (this.selectedImages.size === 0) {
       alert('Please select at least one image for evaluation')
       return
     }
 
-    // Close modal and start evaluation
+    const imagesArray = Array.from(this.selectedImages)
     this.closeModal()
-
-    // Start the evaluation process
-    if (this.evalRunner) {
-      this.evalRunner.startEvaluation(this.selectedImages, this.batchSize)
-    }
+    this.evalRunner.startEvaluation(imagesArray, this.batchSize)
   }
 
+  /*
   private async loadWorkflow(img: ImageItem) {
     try {
       const infoUrl = img.url
@@ -396,4 +391,5 @@ export class EvalBrowser {
       alert(`Error loading workflow: ${(error as Error).message}`)
     }
   }
+  */
 }
