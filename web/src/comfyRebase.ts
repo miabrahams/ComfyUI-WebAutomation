@@ -319,6 +319,10 @@ const extension: ComfyExtension = {
     app.menu.element.appendChild(copyPasteButtons.element);
     app.menu.element.appendChild(browseButton.element);
   },
+  async afterConfigureGraph() {
+    console.log("REBASE: afterConfigureGraph");
+  }
+
 };
 
 app.registerExtension(extension);
