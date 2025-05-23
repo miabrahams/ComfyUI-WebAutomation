@@ -3,7 +3,6 @@
  * Manages sequential processing of workflows with batch execution
  */
 
-import { exec } from 'child_process';
 import { type Differ } from './types'
 import { LGraphNode } from "@comfyorg/litegraph"
 
@@ -245,3 +244,19 @@ export class EvalRunner {
     await new Promise(resolve => setTimeout(resolve, 500));
   }
 }
+
+/* Run in browser console to benchmark */
+
+/*
+(async (batches = 200, perBatch = 4) => {
+  console.groupCollapsed('Queue Benchmark');
+  console.time('Total time');
+  for (let i = 0; i < batches; i++) {
+    const start = performance.now();
+    await app.queuePrompt(0, perBatch);
+    console.log(`Batch ${i + 1}/${batches} took ${Math.round(performance.now() - start)}ms`);
+  }
+  console.timeEnd('Total time');
+  console.groupEnd();
+})();
+*/

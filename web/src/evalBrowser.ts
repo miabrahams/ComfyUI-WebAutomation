@@ -1,5 +1,14 @@
 import { type EvalRunner } from './evalRunner'
 
+
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
+
 interface ImageItem {
   filename: string
   url: string
@@ -248,6 +257,39 @@ export class EvalBrowser {
 
       selectionControls.appendChild(selectAllBtn)
       selectionControls.appendChild(clearSelectionBtn)
+
+      // Random selection controls
+      const randomLabel = document.createElement('label')
+      randomLabel.textContent = ' Random:'
+      randomLabel.style.marginRight = '5px'
+
+      const randomInput = document.createElement('input')
+      randomInput.type = 'number'
+      randomInput.min = '1'
+      randomInput.max = String(data.images.length)
+      randomInput.value = '100'
+      randomInput.style.width = '50px'
+      randomInput.style.marginRight = '10px'
+
+      const randomSelectBtn = document.createElement('button')
+      randomSelectBtn.textContent = 'Random Select'
+      randomSelectBtn.onclick = () => {
+        this.selectedImages.clear()
+        const shuffleIdx = [...this.currentImages.keys()]
+        shuffleArray(shuffleIdx)
+        const n = Math.min(parseInt(randomInput.value) || 0, this.currentImages.length)
+        const selectedIdx = shuffleIdx.slice(0, n);
+        selectedIdx.forEach(idx => this.selectedImages.add(this.currentImages[idx]))
+        container.querySelectorAll('.image-checkbox input')
+          .forEach((cb: any, idx: number) => {
+            cb.checked = selectedIdx.includes(idx)
+          })
+      }
+
+      selectionControls.appendChild(randomLabel)
+      selectionControls.appendChild(randomInput)
+      selectionControls.appendChild(randomSelectBtn)
+
       container.appendChild(selectionControls)
 
       // Create grid for images
@@ -360,35 +402,4 @@ export class EvalBrowser {
     this.closeModal()
     this.evalRunner.startEvaluation(imagesArray, this.batchSize)
   }
-
-  /*
-  private async loadWorkflow(img: ImageItem) {
-    try {
-      const infoUrl = img.url
-      const res = await fetch(infoUrl)
-
-      if (!res.ok) {
-        console.warn('No workflow data found for', img.filename)
-        return
-      }
-
-      const blob = await res.blob()
-      const file = new File([blob], img.filename, {
-            type: res.headers.get('Content-Type') || '',
-      });
-      console.log("file size:", file.size, "file name:", file.name)
-
-      // Load workflow into ComfyUI
-      await app.handleFile(file)
-      console.log('Workflow loaded from', img.filename)
-
-      // Close modal
-      this.closeModal()
-
-    } catch (error) {
-      console.error('Error loading workflow:', error)
-      alert(`Error loading workflow: ${(error as Error).message}`)
-    }
-  }
-  */
 }
