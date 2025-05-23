@@ -43,8 +43,8 @@ interface DiffNodeData {
 }
 
 class ComfyRebase implements Differ {
-  storedNodeData: Record<string, NodeData> = {};
-  diffData: Record<string, DiffNodeData> = {};
+  storedNodeData: Map<string | number, NodeData> = new Map();
+  diffData: Map<string | number, DiffNodeData> = new Map();
 
   dropModal: DropModal;
   evalBrowser: EvalBrowser;
@@ -60,7 +60,7 @@ class ComfyRebase implements Differ {
 
   copyNodeValues() {
     const graph = app.graph;
-    this.storedNodeData = {};
+    this.storedNodeData = new Map();
 
     graph._nodes.forEach((node) => {
       if (!node.widgets || typeof node.id === 'undefined') return;
@@ -76,21 +76,22 @@ class ComfyRebase implements Differ {
         });
       }
 
-      this.storedNodeData[node.id] = {
+      this.storedNodeData.set(node.id, {
         type: node.type,
         values: widgetValues,
         mode: node.mode,
-      };
+      });
     });
     console.log('Node values copied:', this.storedNodeData);
   }
 
   pasteNodeValues() {
     const graph = app.graph;
+/*     this.storedNodeData.forEach((nodeData) => { */
     graph._nodes.forEach((node) => {
       if (typeof node.id === 'undefined') return; // Skip nodes without ID
 
-      const storedData = this.storedNodeData[node.id];
+      const storedData = this.storedNodeData.get(node.id);
 
       if (
         node.widgets && // Check if node has widgets
@@ -119,12 +120,12 @@ class ComfyRebase implements Differ {
   diffNodeValues() {
     console.log('Calculating diff (widget/mode based)');
     const graph = app.graph;
-    this.diffData = {};
+    this.diffData = new Map();
 
     graph._nodes.forEach((node) => {
       if (typeof node.id === 'undefined') return; // Skip nodes without ID
 
-      const storedData = this.storedNodeData[node.id];
+      const storedData = this.storedNodeData.get(node.id);
       // Check if we have stored data for this node and it has widgets
       if (!node.widgets || !storedData) return;
 
@@ -164,11 +165,11 @@ class ComfyRebase implements Differ {
       }
 
       if (Object.keys(nodeDiff).length > 0) {
-        this.diffData[node.id] = nodeDiff;
+        this.diffData.set(node.id, nodeDiff);
       }
     });
 
-    if (Object.keys(this.diffData).length > 0) {
+    if (this.diffData.size > 0) {
       console.log('Diff calculated', this.diffData);
     } else {
       console.log('No differences found.');
@@ -184,7 +185,7 @@ class ComfyRebase implements Differ {
   // Add applyDiff based on comfyRebase_orig.js
   applyDiff() {
     console.log("Applying diff (widget/mode based)");
-    if (Object.keys(this.diffData).length === 0) {
+    if (this.diffData.size === 0) {
         console.warn("No diff data to apply.");
         app.extensionManager.toast.add({
           severity: 'warn',
@@ -201,7 +202,7 @@ class ComfyRebase implements Differ {
     graph._nodes.forEach((node) => {
       if (typeof node.id === 'undefined') return; // Skip nodes without ID
 
-      const nodeDiffData = this.diffData[node.id];
+      const nodeDiffData = this.diffData.get(node.id);
       if (!nodeDiffData) return; // No diff for this node
 
       if (node.widgets) {
