@@ -7,14 +7,13 @@ import { EvalRunner } from './evalRunner';
 import { type Differ } from './types'
 
 // --- Define structure for ComfyUI's global API ---
-// Based on observations from index.js and common ComfyUI patterns
-// These might need adjustments based on the actual ComfyUI version/API
+// May change over time
 declare global {
   interface Window {
     comfyAPI: {
-      app: { app: ComfyApp }; // Assuming app instance is nested here
-      ui: { $el: (tag: string, ...args: any[]) => HTMLElement }; // Basic type for $el
-      button: { ComfyButton: new (options: any) => any }; // Basic constructor type
+      app: { app: ComfyApp }; // App instance
+      ui: { $el: (tag: string, ...args: any[]) => HTMLElement }; // helper to add element
+      button: { ComfyButton: new (options: any) => any }; // helper to create Comfy styled button
       buttonGroup: { ComfyButtonGroup: new (...buttons: any[]) => any }; // Basic constructor type
     };
     LiteGraph: typeof LiteGraph; // Make LiteGraph globally accessible if needed elsewhere
@@ -51,8 +50,7 @@ class ComfyRebase implements Differ {
   evalRunner: EvalRunner;
 
   constructor() {
-    // Update log message if desired
-    console.log("Initializing ComfyRebase (Value Copy/Paste + Diff + Eval)");
+    console.log("Initializing ComfyRebase");
     this.dropModal = new DropModal(this);
     this.evalRunner = new EvalRunner(this);
     this.evalBrowser = new EvalBrowser(this.evalRunner);
@@ -69,9 +67,10 @@ class ComfyRebase implements Differ {
       const widgetValues = new Map<string, any>();
       if (node.widgets) {
         node.widgets.forEach((widget) => {
-          // Ensure widget has a name before storing
           if (widget.name) {
             widgetValues.set(widget.name, widget.value);
+          } else {
+            console.warn('Widget without name found in node', node.id, widget);
           }
         });
       }
@@ -100,10 +99,8 @@ class ComfyRebase implements Differ {
       ) {
         console.log('Pasting node id', node.id);
         for (const widget of node.widgets) {
-          // Ensure widget has a name before attempting to paste
           if (widget.name && storedData.values.has(widget.name)) {
             const value = storedData.values.get(widget.name);
-            // Avoid pasting undefined/null if not intended, though original code allowed it
             widget.value = value;
           } else if (widget.name) {
             console.log('No stored value for ', node.id, widget.name);
@@ -126,10 +123,8 @@ class ComfyRebase implements Differ {
       if (typeof node.id === 'undefined') return; // Skip nodes without ID
 
       const storedData = this.storedNodeData.get(node.id);
-      // Check if we have stored data for this node and it has widgets
       if (!node.widgets || !storedData) return;
 
-      // Ensure type matches before diffing
       if (storedData.type !== node.type) {
         console.log(`Node ${node.id} type mismatch, skipping diff.`);
         return;
@@ -146,16 +141,15 @@ class ComfyRebase implements Differ {
       const nodeDiff: DiffNodeData = {};
 
       // Diff widget values
+      // Note: This doesn't capture widgets added/removed, only changed values
       for (const [name, currentValue] of currentValues.entries()) {
         if (storedValues.has(name)) {
           const storedValue = storedValues.get(name);
-          // Basic comparison, might need deep comparison for objects/arrays
           if (JSON.stringify(storedValue) !== JSON.stringify(currentValue)) {
             console.log('Found value diff for', node.id, name);
             nodeDiff[name] = { old: storedValue, new: currentValue };
           }
         }
-        // Note: This doesn't capture widgets added/removed, only changed values
       }
 
       // Diff mode
@@ -182,7 +176,6 @@ class ComfyRebase implements Differ {
     }
   }
 
-  // Add applyDiff based on comfyRebase_orig.js
   applyDiff() {
     console.log("Applying diff (widget/mode based)");
     if (this.diffData.size === 0) {
@@ -200,10 +193,10 @@ class ComfyRebase implements Differ {
     let changesApplied = false;
 
     graph._nodes.forEach((node) => {
-      if (typeof node.id === 'undefined') return; // Skip nodes without ID
+      if (typeof node.id === 'undefined') return;
 
       const nodeDiffData = this.diffData.get(node.id);
-      if (!nodeDiffData) return; // No diff for this node
+      if (!nodeDiffData) return;
 
       if (node.widgets) {
           for (const widget of node.widgets) {
@@ -230,7 +223,6 @@ class ComfyRebase implements Differ {
     }
   }
 
-  // replace old openEvalBrowser
   openEvalBrowser() {
     this.evalBrowser.openModal();
   }
@@ -244,7 +236,6 @@ const extension: ComfyExtension = {
   async setup() {
     rebased = new ComfyRebase();
 
-    // Copy Button
     const copyButton = new ComfyButton({
       tooltip: 'Copy Node Values',
       app,
@@ -254,7 +245,6 @@ const extension: ComfyExtension = {
       action: () => { rebased.copyNodeValues() },
     });
 
-    // Paste Button
     const pasteButton = new ComfyButton({
       tooltip: 'Paste Node Values',
       app,
@@ -264,27 +254,24 @@ const extension: ComfyExtension = {
       action: () => { rebased.pasteNodeValues() },
     });
 
-    // Add Diff button back
     const diffButton = new ComfyButton({
-      tooltip: 'Diff Current vs Copied Values', // Updated tooltip
+      tooltip: 'Diff Current vs Copied Values',
       app,
       enabled: true,
       content: $el("div", "D"),
       classList: 'comfyui-button primary',
-      action: () => { rebased.diffNodeValues() }, // Connect to new method
+      action: () => { rebased.diffNodeValues() },
     });
 
-    // Add Apply Diff button back
     const applyDiffButton = new ComfyButton({
-      tooltip: 'Apply Value/Mode Diff', // Updated tooltip
+      tooltip: 'Apply Value/Mode Diff',
       app,
       enabled: true,
-      content: $el("div", "A"), // 'A' for Apply
+      content: $el("div", "A"),
       classList: 'comfyui-button primary',
-      action: () => { rebased.applyDiff() }, // Connect to new method
+      action: () => { rebased.applyDiff() },
     });
 
-    // Drop Image Button
     const dropImageButton = new ComfyButton({
       tooltip: 'Drop Image, Apply Diff & Queue', // Updated tooltip
       app,
@@ -294,7 +281,6 @@ const extension: ComfyExtension = {
       action: () => { rebased.dropModal.openImageDropModal() },
     });
 
-    // New: Browse Images button (uses openEvalBrowser)
     const browseButton = new ComfyButton({
       tooltip: 'Browse Images',
       app,
@@ -304,16 +290,15 @@ const extension: ComfyExtension = {
       action: () => { rebased.openEvalBrowser() },
     })
 
-    // Update ButtonGroup to include all buttons
-    const copyPasteButtons = new ComfyButtonGroup(
+    const rebaseButtons = new ComfyButtonGroup(
       copyButton,
       pasteButton,
-      diffButton,       // Added back
-      applyDiffButton,  // Added back
+      diffButton,
+      applyDiffButton,
       dropImageButton
     );
 
-    app.menu.element.appendChild(copyPasteButtons.element);
+    app.menu.element.appendChild(rebaseButtons.element);
     app.menu.element.appendChild(browseButton.element);
   },
   async afterConfigureGraph() {
