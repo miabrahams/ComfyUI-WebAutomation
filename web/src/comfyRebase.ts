@@ -1,9 +1,10 @@
 import { ComfyApp, ComfyApi, ComfyExtension } from '@comfyorg/comfyui-frontend-types';
-import { LGraphEventMode, LiteGraph, LGraphNode } from '@comfyorg/litegraph'; // Import LGraphNode
+import { LGraphEventMode, LiteGraph, LGraphNode } from '@comfyorg/litegraph';
 
 import { DropModal } from './dropModal';
 import { EvalBrowser } from './evalBrowser';
 import { EvalRunner } from './evalRunner';
+import { DiffPopup } from './diffPopup';
 import { type Differ } from './types'
 
 // --- Define structure for ComfyUI's global API ---
@@ -50,12 +51,29 @@ class ComfyRebase implements Differ {
   dropModal: DropModal;
   evalBrowser: EvalBrowser;
   evalRunner: EvalRunner;
+  diffPopup: DiffPopup;
 
   constructor() {
     console.log("Initializing ComfyRebase");
     this.dropModal = new DropModal(this);
     this.evalRunner = new EvalRunner(this);
     this.evalBrowser = new EvalBrowser(this.evalRunner);
+    this.diffPopup = new DiffPopup();
+
+    // Set callback for when diff is loaded
+    this.diffPopup.onDiffLoaded = (diffData) => {
+      console.log('Loading diff from popup:', diffData);
+      // Convert the loaded diff data to our internal format
+      this.diffData = new Map(Object.entries(diffData));
+      this.applyDiff();
+
+      app.extensionManager.toast.add({
+        severity: 'success',
+        summary: 'Diff Loaded',
+        detail: 'Diff has been loaded and applied to the workflow',
+        life: 3000,
+      });
+    };
   }
 
   copyNodeValues() {
@@ -228,6 +246,17 @@ class ComfyRebase implements Differ {
   openEvalBrowser() {
     this.evalBrowser.openModal();
   }
+
+  private getCurrentDiffForPopup(): Map<NodeID, DiffNodeData> | null {
+    return this.diffData.size > 0 ? this.diffData : null;
+  }
+
+  showDiffPopup() {
+    // Convert our internal diff format to the format expected by the popup
+    const currentDiff = this.getCurrentDiffForPopup();
+    const diffForPopup = currentDiff ? Object.fromEntries(currentDiff) : null;
+    this.diffPopup.show(diffForPopup);
+  }
 }
 
 let rebased: ComfyRebase;
@@ -262,7 +291,11 @@ const extension: ComfyExtension = {
       enabled: true,
       content: $el("div", "D"),
       classList: 'comfyui-button primary',
-      action: () => { rebased.diffNodeValues() },
+      action: () => {
+        rebased.diffNodeValues();
+        // Show the diff popup after calculating diff
+        rebased.showDiffPopup();
+      },
     });
 
     const applyDiffButton = new ComfyButton({

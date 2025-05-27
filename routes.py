@@ -1,7 +1,7 @@
 from aiohttp import web
 import os
 from pathlib import Path
-import json
+from .diff_manager import DiffManager
 
 def get_parent_path():
     """Get the ComfyUI-SearchReplace root directory"""
@@ -88,3 +88,57 @@ async def view_file(request):
         content_type = f"image/{ext[1:]}"
 
     return web.Response(body=data, content_type=content_type)
+
+diff_manager = DiffManager()
+
+async def save_diff_route(request):
+    """Save a diff with a given name."""
+    try:
+        data = await request.json()
+        name = data.get('name', '').strip()
+        diff_data = data.get('diff', {})
+
+        if not name:
+            return web.json_response({'error': 'Name is required'}, status=400)
+
+        if not diff_data:
+            return web.json_response({'error': 'Diff data is required'}, status=400)
+
+        filename = diff_manager.save_diff(name, diff_data)
+        return web.json_response({'success': True, 'filename': filename})
+
+    except ValueError as e:
+        return web.json_response({'error': str(e)}, status=400)
+    except Exception as e:
+        return web.json_response({'error': f'Failed to save diff: {str(e)}'}, status=500)
+
+async def list_diffs_route(request):
+    """List all saved diffs."""
+    try:
+        diffs = diff_manager.list_diffs()
+        return web.json_response({'diffs': diffs})
+    except Exception as e:
+        return web.json_response({'error': f'Failed to list diffs: {str(e)}'}, status=500)
+
+async def load_diff_route(request):
+    """Load a specific diff."""
+    try:
+        filename = request.match_info['filename']
+        diff_data = diff_manager.load_diff(filename)
+        return web.json_response({'diff': diff_data})
+    except FileNotFoundError:
+        return web.json_response({'error': 'Diff not found'}, status=404)
+    except Exception as e:
+        return web.json_response({'error': f'Failed to load diff: {str(e)}'}, status=500)
+
+async def delete_diff_route(request):
+    """Delete a diff."""
+    try:
+        filename = request.match_info['filename']
+        success = diff_manager.delete_diff(filename)
+        if success:
+            return web.json_response({'success': True})
+        else:
+            return web.json_response({'error': 'Diff not found'}, status=404)
+    except Exception as e:
+        return web.json_response({'error': f'Failed to delete diff: {str(e)}'}, status=500)
