@@ -1,8 +1,11 @@
 import json
 import os
 import time
+import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional
+
+logger = logging.getLogger(__name__)
 
 class DiffManager:
     """Manages saving, loading, and listing of diff files."""
@@ -74,7 +77,7 @@ class DiffManager:
                 })
             except (json.JSONDecodeError, IOError) as e:
                 # Skip corrupted files
-                print(f"Warning: Could not read diff file {filepath}: {e}")
+                logger.warning(f"Warning: Could not read diff file {filepath}: {e}")
                 continue
 
         # Sort by creation time, newest first
