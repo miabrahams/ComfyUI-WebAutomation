@@ -9,7 +9,6 @@ This is ComfyUI-SearchReplace, a ComfyUI custom node extension that provides dif
 ## Build Commands
 
 ### Frontend (TypeScript/Vite)
-- `cd web && npm run dev` - Start development server for frontend
 - `cd web && npm run build` - Build TypeScript frontend to JavaScript
 - `cd web && npm install` - Install frontend dependencies
 
@@ -61,3 +60,7 @@ This is ComfyUI-SearchReplace, a ComfyUI custom node extension that provides dif
 - Uses ComfyUI's native UI components (ComfyButton, ComfyButtonGroup)
 - Diff format focuses on widget values and node execution modes
 - No automated tests currently configured
+
+## TODO
+
+- Add automated testing framework for TypeScript frontend and Python backend

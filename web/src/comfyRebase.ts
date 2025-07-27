@@ -53,6 +53,8 @@ class ComfyRebase implements Differ {
   evalRunner: EvalRunner;
   diffPopup: DiffPopup;
 
+  private readonly WORKING_DIFF_KEY = 'comfyui-searchreplace-working-diff';
+
   constructor() {
     console.log("Initializing ComfyRebase");
     this.dropModal = new DropModal(this);
@@ -60,11 +62,10 @@ class ComfyRebase implements Differ {
     this.evalBrowser = new EvalBrowser(this.evalRunner);
     this.diffPopup = new DiffPopup();
 
-    // Set callback for when diff is loaded
+    // Callback for when diff is loaded
     this.diffPopup.onDiffLoaded = (diffData) => {
-      console.log('Loading diff from popup:', diffData);
-      // Convert the loaded diff data to our internal format
       this.diffData = new Map(Object.entries(diffData));
+      this.saveWorkingDiff();
       this.applyDiff();
 
       app.extensionManager.toast.add({
@@ -74,6 +75,8 @@ class ComfyRebase implements Differ {
         life: 3000,
       });
     };
+
+    this.restoreWorkingDiff();
   }
 
   copyNodeValues() {
@@ -184,8 +187,9 @@ class ComfyRebase implements Differ {
 
     if (this.diffData.size > 0) {
       console.log('Diff calculated', this.diffData);
+      this.saveWorkingDiff();
     } else {
-      console.log('No differences found.');
+      this.clearWorkingDiff();
       app.extensionManager.toast.add({
         severity: 'info',
         summary: 'No diff found',
@@ -256,6 +260,45 @@ class ComfyRebase implements Differ {
     const currentDiff = this.getCurrentDiffForPopup();
     const diffForPopup = currentDiff ? Object.fromEntries(currentDiff) : null;
     this.diffPopup.show(diffForPopup);
+  }
+
+  private saveWorkingDiff() {
+    try {
+      if (this.diffData.size > 0) {
+        const diffObject = Object.fromEntries(this.diffData);
+        localStorage.setItem(this.WORKING_DIFF_KEY, JSON.stringify(diffObject));
+      } else {
+        // Clear localStorage if no diff data
+        localStorage.removeItem(this.WORKING_DIFF_KEY);
+      }
+    } catch (error) {
+      console.warn('Failed to save working diff to localStorage:', error);
+    }
+  }
+
+  private restoreWorkingDiff() {
+    try {
+      const savedDiff = localStorage.getItem(this.WORKING_DIFF_KEY);
+      if (savedDiff) {
+        const diffObject = JSON.parse(savedDiff);
+        this.diffData = new Map(Object.entries(diffObject));
+
+        app.extensionManager.toast.add({
+          severity: 'info',
+          summary: 'Working diff restored',
+          detail: 'Previous diff restored from browser storage',
+          life: 3000,
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to restore working diff from localStorage:', error);
+      localStorage.removeItem(this.WORKING_DIFF_KEY);
+    }
+  }
+
+  private clearWorkingDiff() {
+    this.diffData.clear();
+    this.saveWorkingDiff();
   }
 }
 
