@@ -16,10 +16,14 @@ interface SavedDiff {
 export class DiffPopup {
   private popup: HTMLElement | null = null;
   private currentDiff: DiffData | null = null;
+  private hasPreviousDiff: boolean = false;
   public onDiffLoaded?: (diffData: DiffData) => void;
+  public onUndo?: () => void;
+  public onMerge?: () => void;
 
-  async show(currentDiff: DiffData | null = null): Promise<void> {
+  async show(currentDiff: DiffData | null = null, hasPreviousDiff: boolean = false): Promise<void> {
     this.currentDiff = currentDiff;
+    this.hasPreviousDiff = hasPreviousDiff;
     this.createPopup();
     await this.loadSavedDiffs();
     this.updateDiffDisplay();
@@ -69,6 +73,12 @@ export class DiffPopup {
 
       <div class="diff-controls" style="margin-bottom: 15px;">
         <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+          <button class="undo-diff-btn" style="padding: 5px 10px; background: #FF9800; color: white; border: none; border-radius: 3px; cursor: pointer;">Undo</button>
+          <button class="merge-diff-btn" style="padding: 5px 10px; background: #9C27B0; color: white; border: none; border-radius: 3px; cursor: pointer;">Merge</button>
+          <div style="flex: 1;"></div>
+        </div>
+
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
           <select class="saved-diffs-select" style="flex: 1; padding: 5px; background: #1a1a1a; color: #fff; border: 1px solid #555;">
             <option value="">Select saved diff...</option>
           </select>
@@ -97,10 +107,15 @@ export class DiffPopup {
     popup.querySelector('.save-diff-btn')?.addEventListener('click', () => this.saveDiff());
     popup.querySelector('.load-diff-btn')?.addEventListener('click', () => this.loadDiff());
     popup.querySelector('.delete-diff-btn')?.addEventListener('click', () => this.deleteDiff());
+    popup.querySelector('.undo-diff-btn')?.addEventListener('click', () => this.undoDiff());
+    popup.querySelector('.merge-diff-btn')?.addEventListener('click', () => this.mergeDiff());
 
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) this.close();
     });
+
+    // Update button states based on hasPreviousDiff
+    this.updateButtonStates();
   }
 
   private updateDiffDisplay(): void {
@@ -227,6 +242,35 @@ export class DiffPopup {
       }
     } catch (error) {
       alert(`Error deleting diff: ${(error as Error).message}`);
+    }
+  }
+
+  private undoDiff(): void {
+    if (this.onUndo) {
+      this.onUndo();
+    }
+  }
+
+  private mergeDiff(): void {
+    if (this.onMerge) {
+      this.onMerge();
+    }
+  }
+
+  private updateButtonStates(): void {
+    const undoBtn = this.popup?.querySelector('.undo-diff-btn') as HTMLButtonElement;
+    const mergeBtn = this.popup?.querySelector('.merge-diff-btn') as HTMLButtonElement;
+    
+    if (undoBtn) {
+      undoBtn.disabled = !this.hasPreviousDiff;
+      undoBtn.style.opacity = this.hasPreviousDiff ? '1' : '0.5';
+      undoBtn.style.cursor = this.hasPreviousDiff ? 'pointer' : 'not-allowed';
+    }
+    
+    if (mergeBtn) {
+      mergeBtn.disabled = !this.hasPreviousDiff;
+      mergeBtn.style.opacity = this.hasPreviousDiff ? '1' : '0.5';
+      mergeBtn.style.cursor = this.hasPreviousDiff ? 'pointer' : 'not-allowed';
     }
   }
 

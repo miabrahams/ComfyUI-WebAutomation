@@ -47,6 +47,7 @@ type NodeID = string | number;
 class ComfyRebase implements Differ {
   storedNodeData: Map<NodeID, NodeData> = new Map();
   diffData: Map<NodeID, DiffNodeData> = new Map();
+  previousDiffData: Map<NodeID, DiffNodeData> = new Map();
 
   dropModal: DropModal;
   evalBrowser: EvalBrowser;
@@ -140,6 +141,9 @@ class ComfyRebase implements Differ {
   diffNodeValues() {
     console.log('Calculating diff (widget/mode based)');
     const graph = app.graph;
+
+    // Store the current diff as previous before calculating new one
+    this.previousDiffData = new Map(this.diffData);
     this.diffData = new Map();
 
     graph._nodes.forEach((node) => {
@@ -247,6 +251,65 @@ class ComfyRebase implements Differ {
     }
   }
 
+  // Restore previous diff
+  undoDiff() {
+    if (this.previousDiffData.size === 0) {
+      app.extensionManager.toast.add({
+        severity: 'warn',
+        summary: 'No previous diff',
+        detail: 'No previous diff available to restore',
+        life: 3000,
+      });
+      return;
+    }
+
+    this.diffData = new Map(this.previousDiffData);
+    this.previousDiffData = new Map();
+    this.saveWorkingDiff();
+
+    app.extensionManager.toast.add({
+      severity: 'success',
+      summary: 'Diff restored',
+      detail: 'Previous diff has been restored',
+      life: 3000,
+    });
+  }
+
+  // Create merged diff by applying current diff on top of previous diff
+  mergeDiffs() {
+    if (this.previousDiffData.size === 0) {
+      app.extensionManager.toast.add({
+        severity: 'warn',
+        summary: 'No previous diff',
+        detail: 'No previous diff available to merge',
+        life: 3000,
+      });
+      return;
+    }
+
+    const mergedDiff = new Map(this.previousDiffData);
+
+    this.diffData.forEach((currentNodeDiff, nodeId) => {
+      const existingNodeDiff = mergedDiff.get(nodeId) || {};
+      const mergedNodeDiff = { ...existingNodeDiff };
+
+      Object.assign(mergedNodeDiff, currentNodeDiff);
+
+      mergedDiff.set(nodeId, mergedNodeDiff);
+    });
+
+    this.diffData = mergedDiff;
+    this.previousDiffData = new Map();
+    this.saveWorkingDiff();
+
+    app.extensionManager.toast.add({
+      severity: 'success',
+      summary: 'Diff merged',
+      detail: 'Current and previous diffs have been merged',
+      life: 3000,
+    });
+  }
+
   openEvalBrowser() {
     this.evalBrowser.openModal();
   }
@@ -259,7 +322,20 @@ class ComfyRebase implements Differ {
     // Convert our internal diff format to the format expected by the popup
     const currentDiff = this.getCurrentDiffForPopup();
     const diffForPopup = currentDiff ? Object.fromEntries(currentDiff) : null;
-    this.diffPopup.show(diffForPopup);
+    const hasPreviousDiff = this.previousDiffData.size > 0;
+
+    // Set up popup callbacks
+    this.diffPopup.onUndo = () => {
+      this.undoDiff();
+      this.showDiffPopup(); // Refresh popup with updated diff
+    };
+
+    this.diffPopup.onMerge = () => {
+      this.mergeDiffs();
+      this.showDiffPopup(); // Refresh popup with updated diff
+    };
+
+    this.diffPopup.show(diffForPopup, hasPreviousDiff);
   }
 
   private saveWorkingDiff() {
