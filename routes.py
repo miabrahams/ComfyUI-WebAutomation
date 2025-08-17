@@ -2,6 +2,7 @@ from aiohttp import web
 import os
 from pathlib import Path
 from .diff_manager import DiffManager
+from .remap_manager import RemapManager
 
 def get_parent_path():
     """Get the ComfyUI-SearchReplace root directory"""
@@ -90,6 +91,7 @@ async def view_file(request):
     return web.Response(body=data, content_type=content_type)
 
 diff_manager = DiffManager()
+remap_manager = RemapManager()
 
 async def save_diff_route(request):
     """Save a diff with a given name."""
@@ -142,3 +144,56 @@ async def delete_diff_route(request):
             return web.json_response({'error': 'Diff not found'}, status=404)
     except Exception as e:
         return web.json_response({'error': f'Failed to delete diff: {str(e)}'}, status=500)
+
+# Remap management routes
+async def save_remaps_route(request):
+    """Save remaps with a given name."""
+    try:
+        data = await request.json()
+        name = data.get('name', '').strip()
+        remaps_data = data.get('remaps', [])
+
+        if not name:
+            return web.json_response({'error': 'Name is required'}, status=400)
+
+        if not remaps_data:
+            return web.json_response({'error': 'Remaps data is required'}, status=400)
+
+        filename = remap_manager.save_remaps(name, remaps_data)
+        return web.json_response({'success': True, 'filename': filename})
+
+    except ValueError as e:
+        return web.json_response({'error': str(e)}, status=400)
+    except Exception as e:
+        return web.json_response({'error': f'Failed to save remaps: {str(e)}'}, status=500)
+
+async def list_remaps_route(request):
+    """List all saved remap configurations."""
+    try:
+        remaps = remap_manager.list_remaps()
+        return web.json_response({'remaps': remaps})
+    except Exception as e:
+        return web.json_response({'error': f'Failed to list remaps: {str(e)}'}, status=500)
+
+async def load_remaps_route(request):
+    """Load a specific remap configuration."""
+    try:
+        filename = request.match_info['filename']
+        remaps_data = remap_manager.load_remaps(filename)
+        return web.json_response({'remaps': remaps_data})
+    except FileNotFoundError:
+        return web.json_response({'error': 'Remaps not found'}, status=404)
+    except Exception as e:
+        return web.json_response({'error': f'Failed to load remaps: {str(e)}'}, status=500)
+
+async def delete_remaps_route(request):
+    """Delete a remap configuration."""
+    try:
+        filename = request.match_info['filename']
+        success = remap_manager.delete_remaps(filename)
+        if success:
+            return web.json_response({'success': True})
+        else:
+            return web.json_response({'error': 'Remaps not found'}, status=404)
+    except Exception as e:
+        return web.json_response({'error': f'Failed to delete remaps: {str(e)}'}, status=500)

@@ -42,12 +42,26 @@ interface DiffNodeData {
   };
 }
 
+// Interface for field remapping configuration
+interface FieldRemap {
+  sourceNodeId: NodeID;
+  sourceField: string;
+  targetNodeId: NodeID;
+  targetField: string;
+}
+
+// Interface for remap storage structure
+interface RemapStorage {
+  remaps: FieldRemap[];
+}
+
 type NodeID = string | number;
 
 class ComfyRebase implements Differ {
   storedNodeData: Map<NodeID, NodeData> = new Map();
   diffData: Map<NodeID, DiffNodeData> = new Map();
   previousDiffData: Map<NodeID, DiffNodeData> = new Map();
+  remaps: FieldRemap[] = [];
 
   dropModal: DropModal;
   evalBrowser: EvalBrowser;
@@ -55,6 +69,7 @@ class ComfyRebase implements Differ {
   diffPopup: DiffPopup;
 
   private readonly WORKING_DIFF_KEY = 'comfyui-searchreplace-working-diff';
+  private readonly WORKING_REMAPS_KEY = 'comfyui-searchreplace-working-remaps';
 
   constructor() {
     console.log("Initializing ComfyRebase");
@@ -78,6 +93,7 @@ class ComfyRebase implements Differ {
     };
 
     this.restoreWorkingDiff();
+    this.restoreWorkingRemaps();
   }
 
   copyNodeValues() {
@@ -110,6 +126,8 @@ class ComfyRebase implements Differ {
 
   pasteNodeValues() {
     const graph = app.graph;
+
+    // First, apply regular node value pasting
     this.storedNodeData.forEach((nodeData, nodeID) => {
       const node = graph._nodes_by_id[nodeID];
       if (node === undefined) {
@@ -134,7 +152,47 @@ class ComfyRebase implements Differ {
         console.warn('Node type mismatch or no widgets found for node', node.id);
       }
     });
+
+    // Second, apply field remappings
+    this.applyFieldRemappings();
+
     app.graph.setDirtyCanvas(true, true);
+  }
+
+  private applyFieldRemappings() {
+    const graph = app.graph;
+
+    this.remaps.forEach((remap) => {
+      const sourceNode = graph._nodes_by_id[remap.sourceNodeId];
+      const targetNode = graph._nodes_by_id[remap.targetNodeId];
+
+      if (!sourceNode) {
+        console.warn(`Source node ${remap.sourceNodeId} not found for remapping`);
+        return;
+      }
+
+      if (!targetNode) {
+        console.warn(`Target node ${remap.targetNodeId} not found for remapping`);
+        return;
+      }
+
+      // Find source value from stored data
+      const sourceData = this.storedNodeData.get(remap.sourceNodeId);
+      if (!sourceData || !sourceData.values.has(remap.sourceField)) {
+        console.warn(`Source field ${remap.sourceField} not found in stored data for node ${remap.sourceNodeId}`);
+        return;
+      }
+
+      // Find target widget and apply the value
+      const targetWidget = targetNode.widgets?.find(w => w.name === remap.targetField);
+      if (!targetWidget) {
+        console.warn(`Target field ${remap.targetField} not found in node ${remap.targetNodeId}`);
+        return;
+      }
+
+      const sourceValue = sourceData.values.get(remap.sourceField);
+      targetWidget.value = sourceValue;
+    });
   }
 
   // Note: This doesn't capture widgets added/removed, only changed values
@@ -335,7 +393,13 @@ class ComfyRebase implements Differ {
       this.showDiffPopup(); // Refresh popup with updated diff
     };
 
-    this.diffPopup.show(diffForPopup, hasPreviousDiff);
+    // Callback for when remaps are updated
+    this.diffPopup.onRemapsChanged = (remaps) => {
+      this.remaps = remaps;
+      this.saveWorkingRemaps();
+    };
+
+    this.diffPopup.show(diffForPopup, hasPreviousDiff, this.remaps, this.storedNodeData);
   }
 
   private saveWorkingDiff() {
@@ -356,8 +420,16 @@ class ComfyRebase implements Differ {
     try {
       const savedDiff = localStorage.getItem(this.WORKING_DIFF_KEY);
       if (savedDiff) {
-        const diffObject = JSON.parse(savedDiff);
-        this.diffData = new Map(Object.entries(diffObject));
+        const parsedData = JSON.parse(savedDiff);
+
+        // Handle legacy format (diff + remaps) and new format (just diff)
+        if (parsedData.diff) {
+          // Legacy format - extract just the diff part
+          this.diffData = new Map(Object.entries(parsedData.diff));
+        } else {
+          // New format - just the diff object
+          this.diffData = new Map(Object.entries(parsedData));
+        }
 
         app.extensionManager.toast.add({
           severity: 'info',
@@ -372,9 +444,50 @@ class ComfyRebase implements Differ {
     }
   }
 
+  private saveWorkingRemaps() {
+    try {
+      if (this.remaps.length > 0) {
+        const remapsData: RemapStorage = { remaps: this.remaps };
+        localStorage.setItem(this.WORKING_REMAPS_KEY, JSON.stringify(remapsData));
+      } else {
+        // Clear localStorage if no remap data
+        localStorage.removeItem(this.WORKING_REMAPS_KEY);
+      }
+    } catch (error) {
+      console.warn('Failed to save working remaps to localStorage:', error);
+    }
+  }
+
+  private restoreWorkingRemaps() {
+    try {
+      const savedRemaps = localStorage.getItem(this.WORKING_REMAPS_KEY);
+      if (savedRemaps) {
+        const parsedData: RemapStorage = JSON.parse(savedRemaps);
+        this.remaps = parsedData.remaps || [];
+
+        if (this.remaps.length > 0) {
+          app.extensionManager.toast.add({
+            severity: 'info',
+            summary: 'Working remaps restored',
+            detail: `${this.remaps.length} field remap(s) restored from browser storage`,
+            life: 3000,
+          });
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to restore working remaps from localStorage:', error);
+      localStorage.removeItem(this.WORKING_REMAPS_KEY);
+    }
+  }
+
   private clearWorkingDiff() {
     this.diffData.clear();
     this.saveWorkingDiff();
+  }
+
+  private clearWorkingRemaps() {
+    this.remaps = [];
+    this.saveWorkingRemaps();
   }
 }
 
