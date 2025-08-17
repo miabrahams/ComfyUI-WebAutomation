@@ -57,6 +57,52 @@ interface RemapStorage {
 
 type NodeID = string | number;
 
+type PromptReplaceEvent = {
+  type: "promptReplace",
+  detail: {
+      positive_prompt?: string
+      negative_prompt?: string
+      resolution?: {
+        width: number,
+        height: number,
+      }
+  },
+}
+
+const resolutionValues: Array<[number, number, string]> = [
+  [1024, 1024, "1:1 square 1024x1024"],
+  [896, 1152, "3:4 portrait 896x1152"],
+  [832, 1216, "5:8 portrait 832x1216"],
+  [768, 1344, "9:16 portrait 768x1344"],
+  [1152, 896, "4:3 landscape 1152x896"],
+  [1216, 832, "3:2 landscape 1216x832"],
+  [1344, 768, "16:9 landscape 1344x768"],
+]
+
+const matchClosestAspectRatio = (width: number, height: number) => {
+  let bestMatch = Infinity;
+  let bestFit = "";
+  for (const [resWidth, resHeight, resValue] of resolutionValues) {
+    const fitWidth = (resWidth / width)
+    const heightMismatch = Math.abs(resHeight - height * fitWidth);
+    if (heightMismatch < bestMatch) {
+      bestMatch = heightMismatch;
+      bestFit = resValue;
+    }
+
+    const fitHeight = resHeight / height
+    const widthMismatch = Math.abs(resWidth - width * fitHeight);
+    if (widthMismatch < bestMatch) {
+      bestMatch = widthMismatch;
+      bestFit = resValue;
+    }
+  }
+  return bestFit
+
+}
+
+
+
 class ComfyRebase implements Differ {
   storedNodeData: Map<NodeID, NodeData> = new Map();
   diffData: Map<NodeID, DiffNodeData> = new Map();
@@ -72,7 +118,7 @@ class ComfyRebase implements Differ {
   private readonly WORKING_REMAPS_KEY = 'comfyui-searchreplace-working-remaps';
 
   constructor() {
-    console.log("Initializing ComfyRebase");
+    console.log('Initializing ComfyRebase');
     this.dropModal = new DropModal(this);
     this.evalRunner = new EvalRunner(this);
     this.evalBrowser = new EvalBrowser(this.evalRunner);
@@ -101,8 +147,47 @@ class ComfyRebase implements Differ {
 
   private setupApiEventListeners() {
     // Listen for promptReplace events from the API
-    app.api.addEventListener('promptReplace', (event: any) => {
-      console.log('Received promptReplace event:', event.detail);
+    app.api.addEventListener('promptReplace', (event: PromptReplaceEvent) => {
+      console.log('Received promptReplace event:', event);
+      const { positive_prompt, resolution } = event.detail ?? {};
+      if (positive_prompt && positive_prompt.length > 0) {
+        const node = app.graph._nodes_by_id[553]; // hard-code for now
+        if (!node) {
+          console.warn('Node with ID', 553, 'not found in graph');
+          return;
+        }
+
+        for (const widget of node.widgets) {
+          if (widget.name && widget.name === 'text') {
+            widget.value = positive_prompt;
+            console.log('applied positive_prompt');
+          }
+        }
+      } else {
+        console.log('No positive_prompt provided in promptReplace event');
+      }
+
+      if (resolution) {
+        const { width, height } = resolution;
+        if (typeof width === 'number' && typeof height === 'number') {
+          const aspectRatio = matchClosestAspectRatio(width, height);
+          console.log("closest aspect_ratio:", aspectRatio)
+          const node = app.graph._nodes_by_id[346]; // hard-code for now
+          if (!node) {
+            console.warn('Node with ID', 346, 'not found in graph');
+            return;
+          }
+          for (const widget of node.widgets) {
+            if (widget.name && widget.name === 'aspect_ratio') {
+              widget.value = aspectRatio;
+              console.log('applied aspect_ratio', widget.value);
+            }
+          }
+          // Optionally, set a default resolution value
+        } else {
+          console.warn('Invalid resolution provided in promptReplace event');
+        }
+      }
     });
   }
 
@@ -145,7 +230,7 @@ class ComfyRebase implements Differ {
         return;
       }
 
-      if ( node.widgets && nodeData.type === node.type) {
+      if (node.widgets && nodeData.type === node.type) {
         console.log('Pasting node id', node.id);
         for (const widget of node.widgets) {
           if (widget.name && nodeData.values.has(widget.name)) {
@@ -156,10 +241,13 @@ class ComfyRebase implements Differ {
           }
         }
         if (typeof nodeData.mode !== 'undefined') {
-            node.mode = nodeData.mode;
+          node.mode = nodeData.mode;
         }
       } else {
-        console.warn('Node type mismatch or no widgets found for node', node.id);
+        console.warn(
+          'Node type mismatch or no widgets found for node',
+          node.id
+        );
       }
     });
 
@@ -177,26 +265,36 @@ class ComfyRebase implements Differ {
       const targetNode = graph._nodes_by_id[remap.targetNodeId];
 
       if (!sourceNode) {
-        console.warn(`Source node ${remap.sourceNodeId} not found for remapping`);
+        console.warn(
+          `Source node ${remap.sourceNodeId} not found for remapping`
+        );
         return;
       }
 
       if (!targetNode) {
-        console.warn(`Target node ${remap.targetNodeId} not found for remapping`);
+        console.warn(
+          `Target node ${remap.targetNodeId} not found for remapping`
+        );
         return;
       }
 
       // Find source value from stored data
       const sourceData = this.storedNodeData.get(remap.sourceNodeId);
       if (!sourceData || !sourceData.values.has(remap.sourceField)) {
-        console.warn(`Source field ${remap.sourceField} not found in stored data for node ${remap.sourceNodeId}`);
+        console.warn(
+          `Source field ${remap.sourceField} not found in stored data for node ${remap.sourceNodeId}`
+        );
         return;
       }
 
       // Find target widget and apply the value
-      const targetWidget = targetNode.widgets?.find(w => w.name === remap.targetField);
+      const targetWidget = targetNode.widgets?.find(
+        (w) => w.name === remap.targetField
+      );
       if (!targetWidget) {
-        console.warn(`Target field ${remap.targetField} not found in node ${remap.targetNodeId}`);
+        console.warn(
+          `Target field ${remap.targetField} not found in node ${remap.targetNodeId}`
+        );
         return;
       }
 
@@ -272,50 +370,51 @@ class ComfyRebase implements Differ {
   }
 
   applyDiff() {
-    console.log("Applying diff (widget/mode based)");
+    console.log('Applying diff (widget/mode based)');
     if (this.diffData.size === 0) {
-        console.warn("No diff data to apply.");
-        app.extensionManager.toast.add({
-          severity: 'warn',
-          summary: 'Apply failed',
-          detail: 'No diff data to apply.',
-          life: 3000,
-        });
-        return;
+      console.warn('No diff data to apply.');
+      app.extensionManager.toast.add({
+        severity: 'warn',
+        summary: 'Apply failed',
+        detail: 'No diff data to apply.',
+        life: 3000,
+      });
+      return;
     }
 
-    const graph = app.graph;
     let changesApplied = false;
 
     this.diffData.forEach((nodeDiffData, nodeID) => {
-      const node = graph._nodes_by_id[nodeID];
+      const node = app.graph._nodes_by_id[nodeID];
       if (!node) {
         console.warn('Node with ID', nodeID, 'not found in graph');
         return;
       }
 
       if (node.widgets) {
-          for (const widget of node.widgets) {
-            if (widget.name && nodeDiffData[widget.name]) {
-              console.log('Applying value diff to', node.id, widget.name);
-              widget.value = nodeDiffData[widget.name].new;
-              changesApplied = true;
-            }
+        for (const widget of node.widgets) {
+          if (widget.name && nodeDiffData[widget.name]) {
+            console.log('Applying value diff to', node.id, widget.name);
+            widget.value = nodeDiffData[widget.name].new;
+            changesApplied = true;
           }
+        }
       }
 
-      if (nodeDiffData["_MODE"]) {
+      if (nodeDiffData['_MODE']) {
         console.log('Applying mode diff to', node.id);
-        node.mode = nodeDiffData["_MODE"].new;
+        node.mode = nodeDiffData['_MODE'].new;
         changesApplied = true;
       }
     });
 
     if (changesApplied) {
-        console.log("Diff applied.");
-        app.graph.setDirtyCanvas(true, true); // Redraw graph
+      console.log('Diff applied.');
+      app.graph.setDirtyCanvas(true, true); // Redraw graph
     } else {
-        console.log("Diff data existed, but no matching nodes/widgets found to apply changes.");
+      console.log(
+        'Diff data existed, but no matching nodes/widgets found to apply changes.'
+      );
     }
   }
 
@@ -409,7 +508,12 @@ class ComfyRebase implements Differ {
       this.saveWorkingRemaps();
     };
 
-    this.diffPopup.show(diffForPopup, hasPreviousDiff, this.remaps, this.storedNodeData);
+    this.diffPopup.show(
+      diffForPopup,
+      hasPreviousDiff,
+      this.remaps,
+      this.storedNodeData
+    );
   }
 
   private saveWorkingDiff() {
@@ -458,7 +562,10 @@ class ComfyRebase implements Differ {
     try {
       if (this.remaps.length > 0) {
         const remapsData: RemapStorage = { remaps: this.remaps };
-        localStorage.setItem(this.WORKING_REMAPS_KEY, JSON.stringify(remapsData));
+        localStorage.setItem(
+          this.WORKING_REMAPS_KEY,
+          JSON.stringify(remapsData)
+        );
       } else {
         // Clear localStorage if no remap data
         localStorage.removeItem(this.WORKING_REMAPS_KEY);
@@ -485,7 +592,10 @@ class ComfyRebase implements Differ {
         }
       }
     } catch (error) {
-      console.warn('Failed to restore working remaps from localStorage:', error);
+      console.warn(
+        'Failed to restore working remaps from localStorage:',
+        error
+      );
       localStorage.removeItem(this.WORKING_REMAPS_KEY);
     }
   }
