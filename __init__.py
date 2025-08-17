@@ -4,7 +4,8 @@ from aiohttp import web
 from .routes import (
     list_data_folders, list_images, view_file,
     save_diff_route, list_diffs_route, load_diff_route, delete_diff_route,
-    save_remaps_route, list_remaps_route, load_remaps_route, delete_remaps_route
+    save_remaps_route, list_remaps_route, load_remaps_route, delete_remaps_route,
+    forward_to_websocket
 )
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,8 @@ rebase_app.add_routes([
     web.get("/remaps/list", list_remaps_route),
     web.get("/remaps/load/{filename}", load_remaps_route),
     web.delete("/remaps/delete/{filename}", delete_remaps_route),
+    # API forwarding route
+    web.post("/forward", forward_to_websocket),
 ])
 server.PromptServer.instance.app.add_subapp("/rebase/", rebase_app)
 

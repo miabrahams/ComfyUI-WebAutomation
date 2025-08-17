@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from .diff_manager import DiffManager
 from .remap_manager import RemapManager
+import server
 
 def get_parent_path():
     """Get the ComfyUI-SearchReplace root directory"""
@@ -197,3 +198,21 @@ async def delete_remaps_route(request):
             return web.json_response({'error': 'Remaps not found'}, status=404)
     except Exception as e:
         return web.json_response({'error': f'Failed to delete remaps: {str(e)}'}, status=500)
+
+async def forward_to_websocket(request):
+    """Forward HTTP requests to websocket as events."""
+    try:
+        data = await request.json()
+        event = data.get('event')
+        event_data = data.get('data', {})
+
+        if not event:
+            return web.json_response({'error': 'Event field is required'}, status=400)
+
+        # Forward to all connected websockets
+        await server.PromptServer.instance.send_json(event, event_data)
+
+        return web.json_response({'success': True})
+
+    except Exception as e:
+        return web.json_response({'error': f'Failed to forward message: {str(e)}'}, status=500)

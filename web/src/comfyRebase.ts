@@ -92,8 +92,18 @@ class ComfyRebase implements Differ {
       });
     };
 
+    // Setup API event listener for promptReplace
+    this.setupApiEventListeners();
+
     this.restoreWorkingDiff();
     this.restoreWorkingRemaps();
+  }
+
+  private setupApiEventListeners() {
+    // Listen for promptReplace events from the API
+    app.api.addEventListener('promptReplace', (event: any) => {
+      console.log('Received promptReplace event:', event.detail);
+    });
   }
 
   copyNodeValues() {
