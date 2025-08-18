@@ -1,5 +1,7 @@
 const LiteGraphInstance = window.LiteGraph;
 import { type Differ } from './types'
+import { queuePrompts } from './lib';
+
 
 export class DropModal {
   dropModal: HTMLElement | undefined;
@@ -137,13 +139,7 @@ export class DropModal {
             console.log('No diff to apply');
           }
 
-          // Wait and queue prompts
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          for (let i = 0; i < 3; i++) {
-            console.log("Queueing prompt", i);
-            await app.queuePrompt(-1, 1);
-            await new Promise((resolve) => setTimeout(resolve, 300));
-          }
+          queuePrompts(3);
         }
       } else {
         console.error('Failed to upload image:', response.statusText);
