@@ -10,9 +10,6 @@ import argparse
 import time
 import json
 import requests
-import urllib.request
-import urllib.parse
-import urllib.error
 from pathlib import Path
 from PIL import Image
 
@@ -68,27 +65,6 @@ def read_prompt_file(text_path):
         return None
 
 
-def send_http_request(url, payload):
-    """Send HTTP POST request with JSON payload."""
-    try:
-        data = json.dumps(payload).encode('utf-8')
-        req = urllib.request.Request(url, data=data)
-        req.add_header('Content-Type', 'application/json')
-
-        with urllib.request.urlopen(req, timeout=10) as response:
-            if response.status == 200:
-                return True
-            else:
-                print(f"HTTP error: {response.status}")
-                return False
-    except urllib.error.URLError as e:
-        print(f"URL error: {e}")
-        return False
-    except Exception as e:
-        print(f"Request error: {e}")
-        return False
-
-
 def send_prompt_replace(base_url, prompt, resolution):
     """Send promptReplace event to ComfyUI."""
     url = f"{base_url}/rebase/forward"
@@ -103,7 +79,13 @@ def send_prompt_replace(base_url, prompt, resolution):
         }
     }
 
-    return send_http_request(url, payload)
+    try:
+        response = requests.post(url, json=payload, timeout=10)
+        response.raise_for_status()
+        return True
+    except requests.exceptions.RequestException as e:
+        print(f"Error sending promptReplace: {e}")
+        return False
 
 
 def send_generate_images(base_url, count):
@@ -116,7 +98,13 @@ def send_generate_images(base_url, count):
         }
     }
 
-    return send_http_request(url, payload)
+    try:
+        response = requests.post(url, json=payload, timeout=10)
+        response.raise_for_status()
+        return True
+    except requests.exceptions.RequestException as e:
+        print(f"Error sending generateImages: {e}")
+        return False
 
 
 def process_batch(directory, base_url, gens_per_image, delay_between_batches=2.0):
@@ -220,7 +208,7 @@ def process_batch(directory, base_url, gens_per_image, delay_between_batches=2.0
 def main():
     parser = argparse.ArgumentParser(description="Batch process image/text pairs for ComfyUI generation")
     parser.add_argument("directory", help="Directory containing image and text files")
-    parser.add_argument("--url", default="http://localhost:8188", help="ComfyUI server URL (default: http://localhost:8188)")
+    parser.add_argument("--url", default="http://localhost:8191", help="ComfyUI server URL (default: http://localhost:8191)")
     parser.add_argument("--gens", type=int, help="Number of generations per image (will prompt if not specified)")
     parser.add_argument("--delay", type=float, default=2.0, help="Delay between batches in seconds (default: 2.0)")
 
