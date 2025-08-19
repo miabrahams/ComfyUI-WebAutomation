@@ -16,7 +16,7 @@ export const queuePrompts = async (count: number) => {
   await new Promise((resolve) => setTimeout(resolve, 1000));
   for (let i = 0; i < count; i++) {
     console.log("Queueing prompt", i);
-    await app.queuePrompt(-1, 1);
+    await app.queuePrompt(0, 1);
     await new Promise((resolve) => setTimeout(resolve, 300));
   }
 }
