@@ -107,12 +107,16 @@ def send_generate_images(base_url, count):
         return False
 
 
-def process_batch(directory, base_url, gens_per_image, delay_between_batches=2.0):
+def process_batch(directory, base_url, gens_per_image, randomize, delay_between_batches):
     """Process all image/text pairs in the directory."""
 
     # Find pairs
     print(f"Scanning directory: {directory}")
     pairs, missing_text = find_image_text_pairs(directory)
+
+    if randomize:
+        import random
+        random.shuffle(pairs)
 
     # Report findings
     print(f"\nFound {len(pairs)} valid image/text pairs")
@@ -210,7 +214,8 @@ def main():
     parser.add_argument("directory", help="Directory containing image and text files")
     parser.add_argument("--url", default="http://localhost:8191", help="ComfyUI server URL (default: http://localhost:8191)")
     parser.add_argument("--gens", type=int, help="Number of generations per image (will prompt if not specified)")
-    parser.add_argument("--delay", type=float, default=2.0, help="Delay between batches in seconds (default: 2.0)")
+    parser.add_argument("--delay", type=float, default=3.0, help="Delay between batches in seconds (default: 3.0)")
+    parser.add_argument("--randomize", action="store_true", help="Randomize the order of image/text pairs before processing")
 
     args = parser.parse_args()
 
@@ -237,7 +242,7 @@ def main():
         sys.exit(1)
 
     try:
-        process_batch(args.directory, args.url, gens_per_image, args.delay)
+        process_batch(args.directory, args.url, gens_per_image, args.randomize, args.delay)
     except KeyboardInterrupt:
         print("\n\nProcessing interrupted by user.")
         sys.exit(1)
