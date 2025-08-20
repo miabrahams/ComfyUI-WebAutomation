@@ -35,32 +35,24 @@ type PromptReplaceEvent = {
   },
 }
 
-const resolutionValues: Array<[number, number, string]> = [
-  [1024, 1024, "1:1 square 1024x1024"],
-  [896, 1152, "3:4 portrait 896x1152"],
-  [832, 1216, "5:8 portrait 832x1216"],
-  [768, 1344, "9:16 portrait 768x1344"],
-  [1152, 896, "4:3 landscape 1152x896"],
-  [1216, 832, "3:2 landscape 1216x832"],
-  [1344, 768, "16:9 landscape 1344x768"],
+const resolutionValues: Array<[number, number, number, string]> = [
+  [1024, 1024, 1024/1024, "1:1 square 1024x1024"],
+  [896, 1152, 896/1152, "3:4 portrait 896x1152"],
+  [832, 1216, 832/1216, "5:8 portrait 832x1216"],
+  [768, 1344, 768/1344, "9:16 portrait 768x1344"],
+  [1152, 896, 1152/896, "4:3 landscape 1152x896"],
+  [1216, 832, 1216/832, "3:2 landscape 1216x832"],
+  [1344, 768, 1344/768, "16:9 landscape 1344x768"],
 ]
 
 const matchClosestAspectRatio = (width: number, height: number) => {
   let bestMatch = Infinity;
-  let bestFit = "";
-  for (const [resWidth, resHeight, resValue] of resolutionValues) {
-    const fitWidth = (resWidth / width)
-    const heightMismatch = Math.abs(resHeight - height * fitWidth);
-    if (heightMismatch < bestMatch) {
-      bestMatch = heightMismatch;
-      bestFit = resValue;
-    }
-
-    const fitHeight = resHeight / height
-    const widthMismatch = Math.abs(resWidth - width * fitHeight);
-    if (widthMismatch < bestMatch) {
-      bestMatch = widthMismatch;
-      bestFit = resValue;
+  let bestFit = "1:1 square 1024x1024"
+  const ar = width / height
+  for (const [_, __, resAR, resValue] of resolutionValues) {
+    if (Math.abs(ar / resAR - 1) < bestMatch) {
+      bestMatch = Math.abs(resAR / ar - 1)
+      bestFit = resValue
     }
   }
   return bestFit
