@@ -58,50 +58,46 @@ const matchClosestAspectRatio = (width: number, height: number) => {
   return bestFit
 }
 
+export const replaceNodeValue = (node_id: number, widget_name: string, value: string) => {
+  const node = app.graph._nodes_by_id[node_id];
+  if (!node) {
+    console.warn('Node with ID', node_id, 'not found in graph');
+    return;
+  }
+  for (const widget of node.widgets) {
+    if (widget.name && widget.name === widget_name) {
+      widget.value = value;
+    }
+  }
+}
 
+// Hard-code node values for the time being
 export const handlePromptReplace = (event: PromptReplaceEvent) => {
-      console.log('Received promptReplace event:', event);
-      const { positive_prompt, resolution } = event.detail ?? {};
-      if (positive_prompt && positive_prompt.length > 0) {
-        const node = app.graph._nodes_by_id[553]; // hard-code for now
-        if (!node) {
-          console.warn('Node with ID', 553, 'not found in graph');
-          return;
-        }
+  console.log('Received promptReplace event:', event);
+  const { positive_prompt, resolution } = event.detail ?? {};
+  if (positive_prompt && positive_prompt.length > 0) {
+    replaceNodeValue(553, 'text', positive_prompt);
+    console.log('Replaced positive_prompt with:', positive_prompt);
+  }
 
-        for (const widget of node.widgets) {
-          if (widget.name && widget.name === 'text') {
-            widget.value = positive_prompt;
-            console.log('applied positive_prompt');
-          }
-        }
-      } else {
-        console.log('No positive_prompt provided in promptReplace event');
-      }
-
-      if (resolution) {
-        const { width, height } = resolution;
-        if (typeof width === 'number' && typeof height === 'number') {
-          const aspectRatio = matchClosestAspectRatio(width, height);
-          console.log("closest aspect_ratio:", aspectRatio)
-          const node = app.graph._nodes_by_id[346]; // hard-code for now
-          if (!node) {
-            console.warn('Node with ID', 346, 'not found in graph');
-            return;
-          }
-          for (const widget of node.widgets) {
-            if (widget.name && widget.name === 'aspect_ratio') {
-              widget.value = aspectRatio;
-              console.log('applied aspect_ratio', widget.value);
-            }
-          }
-          // Optionally, set a default resolution value
-        } else {
-          console.warn('Invalid resolution provided in promptReplace event');
-        }
-      }
+  if (resolution) {
+    const { width, height } = resolution;
+    if (typeof width === 'number' && typeof height === 'number') {
+      const aspectRatio = matchClosestAspectRatio(width, height);
+      console.log('closest aspect_ratio:', aspectRatio);
+      replaceNodeValue(346, 'aspect_ratio', aspectRatio);
+    } else {
+      console.warn('Invalid resolution provided in promptReplace event');
+    }
+  }
 };
 
+export const handleResetGraph = (event: Event) => {
+  console.log('Received resetGraph event:', event);
+  // Reset hard-coded node values
+  replaceNodeValue(553, 'text', '');
+  replaceNodeValue(346, 'aspect_ratio', '1:1 square 1024x1024');
+};
 
 type GenerateImagesEvent = {
   type: "generateImages",
