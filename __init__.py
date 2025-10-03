@@ -1,6 +1,12 @@
 import server
 import logging
 from aiohttp import web
+
+# add current dir to sys.path
+import os
+import sys
+sys.path.append(os.path.dirname(__file__))
+
 from extension.routes import (
     list_data_folders, list_images, view_file,
     save_diff_route, list_diffs_route, load_diff_route, delete_diff_route,
