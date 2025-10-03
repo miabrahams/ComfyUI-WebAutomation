@@ -587,10 +587,10 @@ const extension: ComfyExtension = {
     });
 
     const browseButton = new ComfyButton({
-      tooltip: 'Browse Images',
+      tooltip: 'Automated Evaluations',
       app,
       enabled: true,
-      content: $el('div', '📁'),
+      content: $el('div', '⏩'),
       classList: 'comfyui-button primary',
       action: () => { rebased.openEvalBrowser() },
     })
