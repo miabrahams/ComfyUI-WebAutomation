@@ -3,21 +3,49 @@ import { ComfyApp } from '@comfyorg/comfyui-frontend-types';
 declare global {
   interface Window {
     comfyAPI: {
-      app: { app: ComfyApp }; // App instance
-      ui: { $el: (tag: string, ...args: any[]) => HTMLElement }; // helper to add element
-      button: { ComfyButton: new (options: any) => any }; // helper to create Comfy styled button
-      buttonGroup: { ComfyButtonGroup: new (...buttons: any[]) => any }; // Basic constructor type
+      app: { app: ComfyApp };
+      ui: { $el: (tag: string, ...args: any[]) => HTMLElement };
+      button: { ComfyButton: new (options: any) => any };
+      buttonGroup: { ComfyButtonGroup: new (...buttons: any[]) => any };
     };
   }
 }
 
+type ComfyGraph = Pick<ComfyApp['graph'], '_nodes_by_id'> & {
+  setDirtyCanvas?: (dirty: boolean, dirty2: boolean) => void;
+};
+
+export type ComfyAppLike = Pick<ComfyApp, 'queuePrompt'> & { graph: ComfyGraph };
+
+let appInstance: ComfyAppLike | undefined;
+
+const resolveApp = (): ComfyAppLike => {
+  if (appInstance) {
+    return appInstance;
+  }
+
+  if (typeof window !== 'undefined' && window.comfyAPI?.app?.app) {
+    appInstance = window.comfyAPI.app.app as unknown as ComfyAppLike;
+    return appInstance;
+  }
+
+  throw new Error('Comfy app instance is not available');
+};
+
+export const setAppInstance = (app: ComfyAppLike | undefined) => {
+  appInstance = app;
+};
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export const queuePrompts = async (count: number) => {
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  const app = resolveApp();
+  await wait(1000);
   for (let i = 0; i < count; i++) {
     await app.queuePrompt(0, 1);
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await wait(300);
   }
-}
+};
 
 
 
@@ -57,6 +85,7 @@ const matchClosestAspectRatio = (width: number, height: number) => {
 }
 
 export const replaceNodeValue = (node_id: number, widget_name: string, value: string) => {
+  const app = resolveApp();
   const node = app.graph._nodes_by_id[node_id];
   if (!node) {
     console.warn('Node with ID', node_id, 'not found in graph');
@@ -78,6 +107,7 @@ type GraphType = {
 }
 
 const identifyGraphType = () => {
+  const app = resolveApp();
   const node = app.graph._nodes_by_id[74];
   if (node && node.type === "CLIPTextEncode") {
     return {
@@ -138,8 +168,14 @@ export const handleGenerateImages = (event: GenerateImagesEvent) => {
       console.warn('Invalid count provided in generateImages event: ', count);
       return;
     }
-    queuePrompts(count);
+    return queuePrompts(count);
   } else {
     console.warn('Invalid count provided in generateImages event');
   }
+};
+
+export const __test__ = {
+  resolveApp,
+  matchClosestAspectRatio,
+  wait,
 };

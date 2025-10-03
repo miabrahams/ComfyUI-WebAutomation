@@ -2,7 +2,8 @@
   "name": "web",
   "version": "1.0.0",
   "scripts": {
-    "build": "vite build"
+    "build": "vite build",
+    "test": "vitest run --pool=forks"
   },
   "credits": "build process created by xhiroga/ComfyUI-TypeScript-CustomNode",
   "dependencies": {
@@ -14,6 +15,7 @@
     "vite": "^6.1.0"
   },
   "devDependencies": {
-    "@rollup/plugin-inject": "^5.0.5"
+    "@rollup/plugin-inject": "^5.0.5",
+    "vitest": "^2.1.6"
   }
 }

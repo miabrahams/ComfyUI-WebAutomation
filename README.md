@@ -1,8 +1,8 @@
-# ComfyUI SearchReplace
+# ComfyUI Web Automation
 
-ComfyUI-SearchReplace ("Rebase") adds diff-aware editing, batch reruns, and remote prompts to ComfyUI. Install once with `make install`, then use `make dev` for day-to-day development; both commands copy the extension into `ComfyUI/custom_nodes/` and expose helper APIs under `/rebase/`.
+ComfyUI-WebAutomation adds diff-aware editing, batch reruns, and remote prompts to ComfyUI. Install once with `make install`, then use `make dev` for day-to-day development; both commands copy the extension into `ComfyUI/custom_nodes/` and expose helper APIs.
 
-## Toolbar Buttons (C · P · D · A · 🖼️)
+## Quick Actions Toolbar
 
 - **C — Copy** caches every widget value and execution mode from the current graph so you can track later edits.
 - **P — Paste** restores the cached values onto matching nodes and applies any stored field remaps to mirror settings across nodes.
@@ -16,8 +16,6 @@ ComfyUI-SearchReplace ("Rebase") adds diff-aware editing, batch reruns, and remo
 Click the **⏩ Automations** button to open the evaluation browser. Folders under `data/evals/` (and other `data/*` categories) appear as collections you can preview, multi-select, or randomize. Choosing **Run Evaluation** hands control to the automation runner, which loads each image’s workflow via `/rebase/data/view`, reapplies your diff, triggers widget callbacks such as `beforeQueued`, and queues the requested number of generations while streaming status to a corner overlay. Need to abort? Run `rebased.evalRunner.cancelEvaluation()` in the browser console.
 
 For unattended batches, run `batch_processor.py <directory>` against folders that pair `image.png` with `image.txt` prompts. The script pushes prompt and resolution updates for each pair, then requests the desired number of generations through the broadcast route below.
-
-
 
 ## Change Event Broadcast API
 The backend bridges HTTP to the ComfyUI websocket via one route:
@@ -41,3 +39,8 @@ Other `event` strings are forwarded untouched, so you can wire additional listen
 
 ## Data & Builds
 Diff exports land in `data/diffs/`, remap presets in `data/remaps/`, and evaluation assets under `data/evals/`. Regenerate frontend assets with `make build` (or `npm run build` inside `web/`) whenever you change TypeScript, then reload your ComfyUI tab or rerun `make dev` to pick up the compiled bundle.
+
+## Testing
+- Run `make test` to execute the Python API checks (pytest) and the frontend unit tests (Vitest).
+- Install Python dev dependencies with `pip install pytest multidict` if they are not already available in your environment.
+- The frontend tests rely on the existing `npm install` step under `web/`; re-run it after adding new dependencies.

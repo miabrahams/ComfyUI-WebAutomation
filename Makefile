@@ -1,6 +1,6 @@
 PROJECT_NAME := $(shell python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['name'])")
 
-.PHONY: build dev install
+.PHONY: build dev install test test-python test-web
 
 build:
 	cd web && npm run build
@@ -23,3 +23,11 @@ ComfyUI/.venv: ComfyUI
 ComfyUI/custom_nodes/$(PROJECT_NAME): ComfyUI
 	cd web && npm install && npm run build
 	rsync -av --exclude-from='.gitignore' . $@
+
+test: test-python test-web
+
+test-python:
+	pytest
+
+test-web:
+	cd web && npm run test
