@@ -12,10 +12,8 @@ declare global {
 }
 
 export const queuePrompts = async (count: number) => {
-  // Wait and queue prompts
   await new Promise((resolve) => setTimeout(resolve, 1000));
   for (let i = 0; i < count; i++) {
-    console.log("Queueing prompt", i);
     await app.queuePrompt(0, 1);
     await new Promise((resolve) => setTimeout(resolve, 300));
   }
@@ -102,18 +100,16 @@ const identifyGraphType = () => {
 export const handlePromptReplace = (event: PromptReplaceEvent) => {
   let graphType: GraphType = identifyGraphType();
 
-  console.log('Received promptReplace event:', event);
   const { positive_prompt, resolution } = event.detail ?? {};
   if (positive_prompt && positive_prompt.length > 0) {
     replaceNodeValue(graphType.positive, 'text', positive_prompt);
-    console.log('Replaced positive_prompt with:', positive_prompt);
   }
 
   if (resolution) {
     const { width, height } = resolution;
     if (typeof width === 'number' && typeof height === 'number') {
       const aspectRatio = matchClosestAspectRatio(width, height);
-      console.log('closest aspect_ratio:', aspectRatio);
+      console.debug('closest aspect_ratio:', aspectRatio);
       replaceNodeValue(graphType.aspectRatio, 'aspect_ratio', aspectRatio);
     } else {
       console.warn('Invalid resolution provided in promptReplace event');
@@ -122,7 +118,6 @@ export const handlePromptReplace = (event: PromptReplaceEvent) => {
 };
 
 export const handleResetGraph = (event: Event) => {
-  console.log('Received resetGraph event:', event);
   let graphType: GraphType = identifyGraphType();
   replaceNodeValue(graphType.positive, 'text', '');
   replaceNodeValue(graphType.aspectRatio, 'aspect_ratio', '1:1 square 1024x1024');
@@ -136,10 +131,9 @@ type GenerateImagesEvent = {
 }
 
 export const handleGenerateImages = (event: GenerateImagesEvent) => {
-  console.log('Received generateImages event:', event);
   const { count } = event.detail ?? {};
   if (typeof count === 'number') {
-    console.log('Generating', count, 'images');
+    console.debug('Generating', count, 'images');
     if (count < 1 || count > 8) {
       console.warn('Invalid count provided in generateImages event: ', count);
       return;

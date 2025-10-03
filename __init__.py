@@ -1,7 +1,7 @@
 import server
 import logging
 from aiohttp import web
-from .routes import (
+from extension.routes import (
     list_data_folders, list_images, view_file,
     save_diff_route, list_diffs_route, load_diff_route, delete_diff_route,
     save_remaps_route, list_remaps_route, load_remaps_route, delete_remaps_route,

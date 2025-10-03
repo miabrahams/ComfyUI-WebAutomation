@@ -69,7 +69,6 @@ export class EvalRunner {
   }
 
   private updateStatus(message: string) {
-    console.log("eval status: ", message)
     if (this.statusElement) {
       this.statusElement.innerHTML = message;
       this.statusElement.style.display = 'block';
@@ -118,7 +117,6 @@ export class EvalRunner {
         life: 5000,
       });
     } finally {
-      console.log("startEvaluation finished!")
       this.isRunning = false;
       setTimeout(() => this.hideStatus(), 3000);
     }
@@ -142,7 +140,6 @@ export class EvalRunner {
   }
 
   private async processNextItem() {
-    console.log("processNextItem called", this.isRunning, this.currentQueue)
     if (!this.isRunning || this.currentQueue.length === 0) {
       // All done
       app.extensionManager.toast.add({
@@ -181,7 +178,6 @@ export class EvalRunner {
       executeWidgetsCallback(app.graph.nodes, 'beforeQueued')
 
       // Apply any diffs if available
-      console.log('Applying diff to workflow');
       this.differ.applyDiff();
 
       // Wait a moment for the diff to be applied
@@ -229,11 +225,11 @@ export class EvalRunner {
 
     // Load workflow into ComfyUI
     await app.handleFile(file);
-    console.log('Workflow loaded from', img.filename);
+    console.debug('Workflow loaded from', img.filename);
   }
 
   private async runBatch(): Promise<void> {
-    console.log(`Running workflow batch of size ${this.runsPerImage}`);
+    console.debug(`Running workflow batch of size ${this.runsPerImage}`);
     try {
       await app.queuePrompt(0, this.runsPerImage);
     } catch (error) {
@@ -245,7 +241,7 @@ export class EvalRunner {
   }
 }
 
-/* Run in browser console to benchmark */
+/* Run the following in browser console to benchmark */
 
 /*
 (async (batches = 200, perBatch = 4) => {

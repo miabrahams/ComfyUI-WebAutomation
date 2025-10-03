@@ -99,8 +99,6 @@ export class DropModal {
 
   // Reimplement handleImageDrop without applyDiff
   async handleImageDrop(file: File) {
-    console.log('Loading image:', file.name);
-
     try {
       // Close the modal
       if (this.dropModal) {
@@ -130,13 +128,11 @@ export class DropModal {
         // Set the image name in the first widget of the LoadImage node
         if (imageNode.widgets && imageNode.widgets.length > 0) {
           imageNode.widgets[0].value = data.name || file.name;
-          console.log('Image loaded successfully');
 
           if (Object.keys(this.differ.diffData).length > 0) {
-            console.log("Applying stored diff after image load...");
-            this.differ.applyDiff(); // Apply the widget/mode diff
+            this.differ.applyDiff();
           } else {
-            console.log('No diff to apply');
+            console.debug('No diff to apply');
           }
 
           queuePrompts(3);

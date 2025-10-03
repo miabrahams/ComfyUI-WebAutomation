@@ -1,5 +1,4 @@
 import json
-import os
 import time
 import logging
 from pathlib import Path
@@ -13,7 +12,7 @@ class RemapManager:
     def __init__(self, remaps_dir: Optional[Path] = None):
         if remaps_dir is None:
             # Default to a 'remaps' subdirectory in the extension root
-            self.remaps_dir = Path(__file__).parent / "data" / "remaps"
+            self.remaps_dir = Path(__file__).parent.parent / "data" / "remaps"
         else:
             self.remaps_dir = remaps_dir
 

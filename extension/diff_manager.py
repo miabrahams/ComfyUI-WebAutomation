@@ -1,5 +1,4 @@
 import json
-import os
 import time
 import logging
 from pathlib import Path
@@ -13,7 +12,7 @@ class DiffManager:
     def __init__(self, diffs_dir: Optional[Path] = None):
         if diffs_dir is None:
             # Default to a 'diffs' subdirectory in the extension root
-            self.diffs_dir = Path(__file__).parent / "data" / "diffs"
+            self.diffs_dir = Path(__file__).parent.parent / "data" / "diffs"
         else:
             self.diffs_dir = diffs_dir
 

@@ -75,7 +75,6 @@ class ComfyRebase implements Differ {
   private readonly WORKING_REMAPS_KEY = 'comfyui-searchreplace-working-remaps';
 
   constructor() {
-    console.log('Initializing ComfyRebase');
     this.dropModal = new DropModal(this);
     this.evalRunner = new EvalRunner(this);
     this.evalBrowser = new EvalBrowser(this.evalRunner);
@@ -134,7 +133,7 @@ class ComfyRebase implements Differ {
         mode: node.mode,
       });
     });
-    console.log('Node values copied:', this.storedNodeData);
+    console.debug('Node values copied:', this.storedNodeData);
   }
 
   pasteNodeValues() {
@@ -149,13 +148,13 @@ class ComfyRebase implements Differ {
       }
 
       if (node.widgets && nodeData.type === node.type) {
-        console.log('Pasting node id', node.id);
+        console.debug('Pasting node id', node.id);
         for (const widget of node.widgets) {
           if (widget.name && nodeData.values.has(widget.name)) {
             const value = nodeData.values.get(widget.name);
             widget.value = value;
           } else if (widget.name) {
-            console.log('No stored value for ', node.id, widget.name);
+            console.debug('No stored value for ', node.id, widget.name);
           }
         }
         if (typeof nodeData.mode !== 'undefined') {
@@ -223,7 +222,6 @@ class ComfyRebase implements Differ {
 
   // Note: This doesn't capture widgets added/removed, only changed values
   diffNodeValues() {
-    console.log('Calculating diff (widget/mode based)');
     const graph = app.graph;
 
     // Store the current diff as previous before calculating new one
@@ -237,7 +235,7 @@ class ComfyRebase implements Differ {
       if (!node.widgets || !storedData) return;
 
       if (storedData.type !== node.type) {
-        console.log(`Node ${node.id} type mismatch, skipping diff.`);
+        console.debug(`Node ${node.id} type mismatch, skipping diff.`);
         return;
       }
 
@@ -256,7 +254,7 @@ class ComfyRebase implements Differ {
         if (storedValues.has(name)) {
           const storedValue = storedValues.get(name);
           if (JSON.stringify(storedValue) !== JSON.stringify(currentValue)) {
-            console.log('Found value diff for', node.id, name);
+            console.debug('Found value diff for', node.id, name);
             nodeDiff[name] = { old: storedValue, new: currentValue };
           }
         }
@@ -264,7 +262,7 @@ class ComfyRebase implements Differ {
 
       // Diff mode
       if (node.mode !== storedData.mode) {
-        console.log('Found mode diff for', node.id);
+        console.debug('Found mode diff for', node.id);
         nodeDiff['_MODE'] = { old: storedData.mode, new: node.mode };
       }
 
@@ -274,7 +272,7 @@ class ComfyRebase implements Differ {
     });
 
     if (this.diffData.size > 0) {
-      console.log('Diff calculated', this.diffData);
+      console.debug('Diff calculated', this.diffData);
       this.saveWorkingDiff();
     } else {
       this.clearWorkingDiff();
@@ -288,7 +286,6 @@ class ComfyRebase implements Differ {
   }
 
   applyDiff() {
-    console.log('Applying diff (widget/mode based)');
     if (this.diffData.size === 0) {
       console.warn('No diff data to apply.');
       app.extensionManager.toast.add({
@@ -312,7 +309,6 @@ class ComfyRebase implements Differ {
       if (node.widgets) {
         for (const widget of node.widgets) {
           if (widget.name && nodeDiffData[widget.name]) {
-            console.log('Applying value diff to', node.id, widget.name);
             widget.value = nodeDiffData[widget.name].new;
             changesApplied = true;
           }
@@ -320,17 +316,15 @@ class ComfyRebase implements Differ {
       }
 
       if (nodeDiffData['_MODE']) {
-        console.log('Applying mode diff to', node.id);
         node.mode = nodeDiffData['_MODE'].new;
         changesApplied = true;
       }
     });
 
     if (changesApplied) {
-      console.log('Diff applied.');
       app.graph.setDirtyCanvas(true, true); // Redraw graph
     } else {
-      console.log(
+      console.debug(
         'Diff data existed, but no matching nodes/widgets found to apply changes.'
       );
     }
@@ -607,7 +601,6 @@ const extension: ComfyExtension = {
     app.menu.element.appendChild(browseButton.element);
   },
   async afterConfigureGraph() {
-    console.log("REBASE: afterConfigureGraph");
     rebased.evalRunner.notifyGraphConfigured();
   }
 
