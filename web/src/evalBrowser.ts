@@ -21,6 +21,7 @@ export class EvalBrowser {
   private currentFolder?: string
   private currentType: string = 'evals'
   private batchSize: number = 4
+  private randomize: boolean = false
   private selectedImages: Set<ImageItem> = new Set()
   private currentImages?: ImageItem[]
   private evalRunner: EvalRunner
@@ -286,9 +287,28 @@ export class EvalBrowser {
           })
       }
 
+
+      // Batch size input
+      const randomizeLabel = document.createElement('label')
+      randomizeLabel.textContent = 'Randomize:'
+      randomizeLabel.style.marginRight = '5px'
+
+      // Batch size input
+      const randomizeCheckbox = document.createElement('input')
+      randomizeCheckbox.type = 'checkbox'
+      randomizeCheckbox.title = 'Randomize?'
+      randomizeCheckbox.checked = false
+      randomizeCheckbox.onclick = (e) => {
+        e.stopPropagation() // Prevent image click when clicking checkbox
+        this.randomize = randomizeCheckbox.checked
+      }
+
+
       selectionControls.appendChild(randomLabel)
       selectionControls.appendChild(randomInput)
       selectionControls.appendChild(randomSelectBtn)
+      selectionControls.appendChild(randomizeLabel)
+      selectionControls.appendChild(randomizeCheckbox)
 
       container.appendChild(selectionControls)
 
@@ -399,6 +419,7 @@ export class EvalBrowser {
     }
 
     const imagesArray = Array.from(this.selectedImages)
+    if (this.randomize) { imagesArray.sort(Math.random) }
     this.closeModal()
     this.evalRunner.startEvaluation(imagesArray, this.batchSize)
   }

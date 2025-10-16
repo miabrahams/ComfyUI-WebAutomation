@@ -7,7 +7,7 @@ import server
 
 def get_parent_path():
     """Get the ComfyUI-SearchReplace root directory"""
-    return Path(__file__).parent
+    return Path(__file__).parent.parent
 
 def get_data_path(folder_type="evals"):
     """Get the data directory with optional subfolder"""
