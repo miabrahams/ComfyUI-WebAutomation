@@ -69,7 +69,7 @@ def send_prompt_replace(base_url, prompt, resolution):
     """Send promptReplace event to ComfyUI."""
     url = f"{base_url}/rebase/forward"
     payload = {
-        "event": "promptReplace",
+        "event": "prompt_replace",
         "data": {
             "positive_prompt": prompt,
             "resolution": {
@@ -84,7 +84,7 @@ def send_prompt_replace(base_url, prompt, resolution):
         response.raise_for_status()
         return True
     except requests.exceptions.RequestException as e:
-        print(f"Error sending promptReplace: {e}")
+        print(f"Error sending prompt_replace: {e}")
         return False
 
 
@@ -92,7 +92,7 @@ def send_generate_images(base_url, count):
     """Send generateImages event to ComfyUI."""
     url = f"{base_url}/rebase/forward"
     payload = {
-        "event": "generateImages",
+        "event": "generate",
         "data": {
             "count": count
         }

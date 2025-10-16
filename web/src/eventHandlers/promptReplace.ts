@@ -3,7 +3,7 @@ import { resolveApp, replaceNodeValue, enableNode, bypassNode } from '@/lib';
 
 
 type PromptReplaceEvent = {
-  type: "promptReplace",
+  type: "prompt_replace",
   detail: {
       positive_prompt?: string
       negative_prompt?: string
@@ -166,7 +166,18 @@ export const handlePromptReplace = (event: PromptReplaceEvent) => {
   }
 };
 
-export const handleResetGraph = (event: Event) => {
+type LoadGraphEvent = {
+  type: "load_graph",
+  graph: string,
+}
+export const handleLoadGraph = (event: LoadGraphEvent) => {
+  app.loadGraphData(
+    JSON.parse(event.graph),
+    true,
+    false,
+    null,
+    {},
+  )
   let graphType: GraphType = identifyGraphType();
   replaceNodeValue(graphType.positive, 'text', '');
   replaceNodeValue(graphType.aspectRatio, 'aspect_ratio', '1:1 square 1024x1024');

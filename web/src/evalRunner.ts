@@ -4,6 +4,7 @@
  */
 
 import { type Differ } from './types'
+import { ImageItem, loadWorkflow } from "@/lib"
 import { LGraphNode } from "@comfyorg/litegraph"
 
 const app = window.comfyAPI.app.app;
@@ -20,12 +21,6 @@ export function executeWidgetsCallback(
 }
 
 
-
-interface ImageItem {
-  filename: string;
-  url: string;
-  has_workflow?: boolean;
-}
 
 export class EvalRunner {
   private isRunning: boolean = false;
@@ -169,7 +164,7 @@ export class EvalRunner {
 
     try {
       // Load the workflow
-      await this.loadWorkflow(currentItem);
+      await loadWorkflow(currentItem);
 
       // Wait for graph to be configured
       await this.waitForGraphConfigured();
@@ -208,24 +203,6 @@ export class EvalRunner {
       // Add timeout as fallback
       setTimeout(resolve, 5000);
     });
-  }
-
-  private async loadWorkflow(img: ImageItem): Promise<void> {
-    const infoUrl = img.url;
-    const res = await fetch(infoUrl);
-
-    if (!res.ok) {
-      throw new Error(`No workflow data found for ${img.filename}`);
-    }
-
-    const blob = await res.blob();
-    const file = new File([blob], img.filename, {
-      type: res.headers.get('Content-Type') || '',
-    });
-
-    // Load workflow into ComfyUI
-    await app.handleFile(file);
-    console.debug('Workflow loaded from', img.filename);
   }
 
   private async runBatch(): Promise<void> {

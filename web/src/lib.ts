@@ -1,5 +1,5 @@
 import { ComfyApp } from '@comfyorg/comfyui-frontend-types';
-import { LGraph, LGraphEventMode } from '@comfyorg/litegraph';
+import { LGraphEventMode } from '@comfyorg/litegraph';
 
 declare global {
   interface Window {
@@ -75,3 +75,29 @@ const setNodeMode = (node_id: number, mode: LGraphEventMode) => {
 export const bypassNode  = (node_id: number) => {setNodeMode(node_id, LGraphEventMode.BYPASS)}
 export const disableNode = (node_id: number) => {setNodeMode(node_id, LGraphEventMode.NEVER)}
 export const enableNode  = (node_id: number) => {setNodeMode(node_id, LGraphEventMode.ALWAYS)}
+
+
+
+export interface ImageItem {
+  filename: string;
+  url: string;
+  has_workflow?: boolean;
+}
+
+export async function loadWorkflow(img: ImageItem): Promise<void> {
+  const infoUrl = img.url;
+  const res = await fetch(infoUrl);
+
+  if (!res.ok) {
+    throw new Error(`No workflow data found for ${img.filename}`);
+  }
+
+  const blob = await res.blob();
+  const file = new File([blob], img.filename, {
+    type: res.headers.get('Content-Type') || '',
+  });
+
+  // Load workflow into ComfyUI
+  await app.handleFile(file);
+  console.debug('Workflow loaded from', img.filename);
+}

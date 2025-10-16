@@ -37,7 +37,7 @@ rebase_app.add_routes([
     web.delete("/remaps/delete/{filename}", delete_remaps_route),
 
     web.post("/forward", forward_to_websocket),
-    web.post("/clear", forward_reset_request),
+    web.post("/reset", forward_reset_request),
 ])
 server.PromptServer.instance.app.add_subapp("/rebase/", rebase_app)
 

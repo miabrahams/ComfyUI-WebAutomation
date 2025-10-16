@@ -4,6 +4,8 @@ import { ComfyExtension } from '@comfyorg/comfyui-frontend-types';
 const $el = window.comfyAPI.ui.$el;
 const ComfyButton = window.comfyAPI.button.ComfyButton;
 const ComfyButtonGroup = window.comfyAPI.buttonGroup.ComfyButtonGroup;
+import { handleGenerateImages } from "@/eventHandlers/generateImages"
+import {handlePromptReplace, handleLoadGraph} from "@/eventHandlers/promptReplace"
 
 let rebased: ComfyRebase;
 
@@ -15,9 +17,11 @@ const extension: ComfyExtension = {
 
     // Install event listeners for websocket automation
     // @ts-ignore
-    app.api.addEventListener('promptReplace', handlePromptReplace);
+    app.api.addEventListener('prompt_replace', handlePromptReplace);
     // @ts-ignore
-    app.api.addEventListener('generateImages', handleGenerateImages);
+    app.api.addEventListener('generate', handleGenerateImages);
+    // @ts-ignore
+    app.api.addEventListener('load_graph', handleLoadGraph);
 
 
     // Install UI widgets

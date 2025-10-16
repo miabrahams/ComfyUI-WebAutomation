@@ -1,7 +1,7 @@
 import { queuePrompts } from '@/lib'
 
 type GenerateImagesEvent = {
-  type: "generateImages",
+  type: "generate",
   detail: {
     count?: number,
   },
