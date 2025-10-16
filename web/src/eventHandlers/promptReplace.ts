@@ -1,4 +1,6 @@
-import { resolveApp, replaceNodeValue } from '@/lib';
+import { resolveApp, replaceNodeValue, enableNode, bypassNode } from '@/lib';
+
+
 
 type PromptReplaceEvent = {
   type: "promptReplace",
@@ -8,6 +10,21 @@ type PromptReplaceEvent = {
       resolution?: {
         width: number,
         height: number,
+      }
+      loras?: string
+      sampler?: {
+        steps?: number
+        cfg?: number
+        sampler_name?: string
+        scheduler?: string
+      }
+      name?: string
+      rescaleCfg?: boolean
+      perpNeg?: boolean
+      ipAdapter?: {
+        image?: string
+        weight?: number
+        enabled?: boolean
       }
   },
 }
@@ -62,15 +79,42 @@ const identifyGraphType = () => {
 };
 
 
+// Helpers for conditional set and enabling/disabling nodes
+const setIfProvided = (nodeId: number, field: string, value: any) => {
+  if (value !== undefined && value !== null) {
+    replaceNodeValue(nodeId, field, value);
+  }
+};
+
+const enableNodes = (nodeIds: number[], enabled: boolean) => {
+  nodeIds.forEach((id) => enableNode(id));
+};
+
 // Hard-code node values for the time being
 export const handlePromptReplace = (event: PromptReplaceEvent) => {
-  let graphType: GraphType = identifyGraphType();
+  let graphType = identifyGraphType();
 
-  const { positive_prompt, resolution } = event.detail ?? {};
+  const {
+    positive_prompt,
+    negative_prompt,
+    resolution,
+    loras,
+    sampler,
+    name,
+    rescaleCfg,
+    perpNeg,
+    ipAdapter,
+  } = event.detail ?? {};
+
+  // Prompts
   if (positive_prompt && positive_prompt.length > 0) {
     replaceNodeValue(graphType.positive, 'text', positive_prompt);
   }
+  if (negative_prompt && graphType.negative && graphType.negative > 0) {
+    replaceNodeValue(graphType.negative, 'text', negative_prompt);
+  }
 
+  // Resolution -> aspect ratio
   if (resolution) {
     const { width, height } = resolution;
     if (typeof width === 'number' && typeof height === 'number') {
@@ -80,6 +124,45 @@ export const handlePromptReplace = (event: PromptReplaceEvent) => {
     } else {
       console.warn('Invalid resolution provided in promptReplace event');
     }
+  }
+
+  // LoRAs (treat as text)
+  setIfProvided(340, 'text', loras);
+
+  // Sampler settings (#445)
+  if (sampler) {
+    setIfProvided(445, 'steps', sampler.steps);
+    setIfProvided(445, 'cfg', sampler.cfg);
+    setIfProvided(445, 'sampler_name', sampler.sampler_name);
+    setIfProvided(445, 'scheduler', sampler.scheduler);
+  }
+
+  // Name / Filename (#302)
+  if (typeof name === 'string' && name.length > 0) {
+    // Try both common widget names
+    replaceNodeValue(302, 'name', name);
+    replaceNodeValue(302, 'filename', name);
+  }
+
+  // RescaleCFG enable/disable (#585)
+  if (typeof rescaleCfg === 'boolean') {
+    enableNode(585);
+  }
+
+  // PerpNeg enable/disable (#576, #577)
+  if (typeof perpNeg === 'boolean') {
+    enableNodes([576, 577], perpNeg);
+  }
+
+  // IPAdapter
+  if (ipAdapter) {
+    const enable = ipAdapter.enabled !== false; // default to enabling when provided
+    // Enable/disable the chain
+    enableNodes([572, 560, 562, 570, 571, 569], enable);
+
+    // Set fields
+    setIfProvided(572, 'image', ipAdapter.image);
+    setIfProvided(569, 'weight', ipAdapter.weight);
   }
 };
 

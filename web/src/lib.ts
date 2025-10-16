@@ -1,4 +1,5 @@
 import { ComfyApp } from '@comfyorg/comfyui-frontend-types';
+import { LGraph, LGraphEventMode } from '@comfyorg/litegraph';
 
 declare global {
   interface Window {
@@ -62,3 +63,15 @@ export const replaceNodeValue = (node_id: number, widget_name: string, value: st
   }
 }
 
+const setNodeMode = (node_id: number, mode: LGraphEventMode) => {
+  const node = resolveApp().graph._nodes_by_id[node_id]
+  if (!node) {
+    console.warn("Node with ID", node_id, "not found in graph");
+    return;
+  }
+  node.mode = mode;
+}
+
+export const bypassNode  = (node_id: number) => {setNodeMode(node_id, LGraphEventMode.BYPASS)}
+export const disableNode = (node_id: number) => {setNodeMode(node_id, LGraphEventMode.NEVER)}
+export const enableNode  = (node_id: number) => {setNodeMode(node_id, LGraphEventMode.ALWAYS)}
