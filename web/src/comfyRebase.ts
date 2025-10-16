@@ -5,7 +5,8 @@ import { DropModal } from './dropModal';
 import { EvalBrowser } from './evalBrowser';
 import { EvalRunner } from './evalRunner';
 import { DiffPopup } from './diffPopup';
-import { handlePromptReplace, handleGenerateImages } from './lib';
+import { handleGenerateImages } from '@/eventHandlers/generateImages';
+import { handlePromptReplace } from '@/eventHandlers/promptReplace';
 import { type Differ } from './types'
 
 // --- Define structure for ComfyUI's global API ---
