@@ -1,33 +1,28 @@
-import { ComfyApp, ComfyApi, ComfyExtension } from '@comfyorg/comfyui-frontend-types';
-import { LGraphEventMode, LiteGraph, LGraphNode } from '@comfyorg/litegraph';
+import { ComfyApp } from '@comfyorg/comfyui-frontend-types';
+import { LGraphEventMode, LiteGraph } from '@comfyorg/litegraph';
 
 import { DropModal } from './dropModal';
 import { EvalBrowser } from './evalBrowser';
 import { EvalRunner } from './evalRunner';
 import { DiffPopup } from './diffPopup';
-import { handleGenerateImages } from '@/eventHandlers/generateImages';
-import { handlePromptReplace } from '@/eventHandlers/promptReplace';
 import { type Differ } from './types'
 
-// --- Define structure for ComfyUI's global API ---
-// May change over time
+// ComfyUI API exports
 declare global {
   interface Window {
     comfyAPI: {
       app: { app: ComfyApp }; // App instance
-      ui: { $el: (tag: string, ...args: any[]) => HTMLElement }; // helper to add element
-      button: { ComfyButton: new (options: any) => any }; // helper to create Comfy styled button
-      buttonGroup: { ComfyButtonGroup: new (...buttons: any[]) => any }; // Basic constructor type
+      ui: { $el: (tag: string, ...args: any[]) => HTMLElement }; // add element
+      button: { ComfyButton: new (options: any) => any }; // create Comfy styled button
+      buttonGroup: { ComfyButtonGroup: new (...buttons: any[]) => any }; // create Comfy button group
     };
-    LiteGraph: typeof LiteGraph; // Make LiteGraph globally accessible if needed elsewhere
+    LiteGraph: typeof LiteGraph; // LiteGraph is globally accessible
   }
 }
 
 // Access core objects via the global API
 const app = window.comfyAPI.app.app;
-const $el = window.comfyAPI.ui.$el;
-const ComfyButton = window.comfyAPI.button.ComfyButton;
-const ComfyButtonGroup = window.comfyAPI.buttonGroup.ComfyButtonGroup;
+
 
 // Interface for storing node data
 interface NodeData {
@@ -59,9 +54,7 @@ interface RemapStorage {
 
 type NodeID = string | number;
 
-
-
-class ComfyRebase implements Differ {
+export class ComfyRebase implements Differ {
   storedNodeData: Map<NodeID, NodeData> = new Map();
   diffData: Map<NodeID, DiffNodeData> = new Map();
   previousDiffData: Map<NodeID, DiffNodeData> = new Map();
@@ -95,18 +88,9 @@ class ComfyRebase implements Differ {
       });
     };
 
-    // Setup API event listener for promptReplace
-    this.setupApiEventListeners();
 
     this.restoreWorkingDiff();
     this.restoreWorkingRemaps();
-  }
-
-  private setupApiEventListeners() {
-    // @ts-ignore
-    app.api.addEventListener('promptReplace', handlePromptReplace);
-    // @ts-ignore
-    app.api.addEventListener('generateImages', handleGenerateImages);
   }
 
   copyNodeValues() {
@@ -523,88 +507,3 @@ class ComfyRebase implements Differ {
     this.saveWorkingRemaps();
   }
 }
-
-let rebased: ComfyRebase;
-
-const extension: ComfyExtension = {
-  name: 'ComfyUI.Rebase',
-  init() {},
-  async setup() {
-    rebased = new ComfyRebase();
-
-    const copyButton = new ComfyButton({
-      tooltip: 'Copy Node Values',
-      app,
-      enabled: true,
-      content: $el("div", "C"),
-      classList: 'comfyui-button primary',
-      action: () => { rebased.copyNodeValues() },
-    });
-
-    const pasteButton = new ComfyButton({
-      tooltip: 'Paste Node Values',
-      app,
-      enabled: true,
-      content: $el("div", "P"),
-      classList: 'comfyui-button primary',
-      action: () => { rebased.pasteNodeValues() },
-    });
-
-    const diffButton = new ComfyButton({
-      tooltip: 'Diff Current vs Copied Values',
-      app,
-      enabled: true,
-      content: $el("div", "D"),
-      classList: 'comfyui-button primary',
-      action: () => {
-        rebased.diffNodeValues();
-        // Show the diff popup after calculating diff
-        rebased.showDiffPopup();
-      },
-    });
-
-    const applyDiffButton = new ComfyButton({
-      tooltip: 'Apply Value/Mode Diff',
-      app,
-      enabled: true,
-      content: $el("div", "A"),
-      classList: 'comfyui-button primary',
-      action: () => { rebased.applyDiff() },
-    });
-
-    const dropImageButton = new ComfyButton({
-      tooltip: 'Drop Image, Apply Diff & Queue', // Updated tooltip
-      app,
-      enabled: true,
-      content: $el("div", "🖼️"),
-      classList: 'comfyui-button primary',
-      action: () => { rebased.dropModal.openImageDropModal() },
-    });
-
-    const browseButton = new ComfyButton({
-      tooltip: 'Automated Evaluations',
-      app,
-      enabled: true,
-      content: $el('div', '⏩'),
-      classList: 'comfyui-button primary',
-      action: () => { rebased.openEvalBrowser() },
-    })
-
-    const rebaseButtons = new ComfyButtonGroup(
-      copyButton,
-      pasteButton,
-      diffButton,
-      applyDiffButton,
-      dropImageButton
-    );
-
-    app.menu.element.appendChild(rebaseButtons.element);
-    app.menu.element.appendChild(browseButton.element);
-  },
-  async afterConfigureGraph() {
-    rebased.evalRunner.notifyGraphConfigured();
-  }
-
-};
-
-app.registerExtension(extension);
