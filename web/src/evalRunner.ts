@@ -3,11 +3,11 @@
  * Manages sequential processing of workflows with batch execution
  */
 
-import { type Differ } from './types'
-import { ImageItem, loadWorkflow } from "@/lib"
+import { type Differ, ImageItem, loadWorkflow } from "@/lib"
 import { LGraphNode } from "@comfyorg/litegraph"
+import { resolveApp } from "@/lib";
 
-const app = window.comfyAPI.app.app;
+const app = resolveApp();
 
 export function executeWidgetsCallback(
   nodes: LGraphNode[],

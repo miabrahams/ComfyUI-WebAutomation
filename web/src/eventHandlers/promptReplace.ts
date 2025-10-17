@@ -168,11 +168,11 @@ export const handlePromptReplace = (event: PromptReplaceEvent) => {
 
 type LoadGraphEvent = {
   type: "load_graph",
-  graph: string,
+  detail: string, // graph JSON
 }
 export const handleLoadGraph = (event: LoadGraphEvent) => {
   app.loadGraphData(
-    JSON.parse(event.graph),
+    JSON.parse(event.detail),
     true,
     false,
     null,

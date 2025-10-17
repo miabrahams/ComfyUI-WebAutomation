@@ -5,7 +5,7 @@ export default defineConfig({
   build: {
     outDir: 'js',
     lib: {
-      entry: '/src/comfyRebase.ts',
+      entry: '/src/index.ts',
       formats: ['es'],
       fileName: (_, entryName) => `${entryName}.js`
     },

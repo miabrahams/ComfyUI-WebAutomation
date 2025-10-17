@@ -4,7 +4,7 @@ import { LGraphEventMode } from '@comfyorg/litegraph';
 declare global {
   interface Window {
     comfyAPI: {
-      app: { app: ComfyApp };
+      app: { app: ComfyAppLike };
       ui: { $el: (tag: string, ...args: any[]) => HTMLElement };
       button: { ComfyButton: new (options: any) => any };
       buttonGroup: { ComfyButtonGroup: new (...buttons: any[]) => any };
@@ -12,14 +12,15 @@ declare global {
   }
 }
 
-type ComfyGraph = Pick<ComfyApp['graph'], '_nodes_by_id'> & {
-  setDirtyCanvas?: (dirty: boolean, dirty2: boolean) => void;
-};
-
-export type ComfyAppLike = Pick<ComfyApp, 'queuePrompt'> & { graph: ComfyGraph };
+// Record the parts we need here
+export type ComfyAppLike = Pick<
+  ComfyApp,
+  'queuePrompt' | 'registerExtension' | 'extensionManager' | 'graph' | 'menu'
+>;
 
 let appInstance: ComfyAppLike | undefined;
 
+// todo: call once, pass as dependency
 export const resolveApp = (): ComfyAppLike => {
   if (appInstance) {
     return appInstance;
@@ -100,4 +101,18 @@ export async function loadWorkflow(img: ImageItem): Promise<void> {
   // Load workflow into ComfyUI
   await app.handleFile(file);
   console.debug('Workflow loaded from', img.filename);
+}
+
+export function shuffleArray<T>(array: T[]) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
+
+
+export interface Differ {
+  diffData: Record<string, any>
+  applyDiff: Function
 }

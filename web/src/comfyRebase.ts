@@ -1,27 +1,13 @@
-import { ComfyApp } from '@comfyorg/comfyui-frontend-types';
-import { LGraphEventMode, LiteGraph } from '@comfyorg/litegraph';
+import { LGraphEventMode } from '@comfyorg/litegraph';
 
 import { DropModal } from './dropModal';
 import { EvalBrowser } from './evalBrowser';
 import { EvalRunner } from './evalRunner';
 import { DiffPopup } from './diffPopup';
-import { type Differ } from './types'
-
-// ComfyUI API exports
-declare global {
-  interface Window {
-    comfyAPI: {
-      app: { app: ComfyApp }; // App instance
-      ui: { $el: (tag: string, ...args: any[]) => HTMLElement }; // add element
-      button: { ComfyButton: new (options: any) => any }; // create Comfy styled button
-      buttonGroup: { ComfyButtonGroup: new (...buttons: any[]) => any }; // create Comfy button group
-    };
-    LiteGraph: typeof LiteGraph; // LiteGraph is globally accessible
-  }
-}
+import { type Differ, resolveApp } from './lib';
 
 // Access core objects via the global API
-const app = window.comfyAPI.app.app;
+const app = resolveApp();
 
 
 // Interface for storing node data
