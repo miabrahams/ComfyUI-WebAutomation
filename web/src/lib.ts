@@ -45,12 +45,17 @@ export const queuePrompts = async (count: number) => {
   await wait(1000);
   for (let i = 0; i < count; i++) {
     await app.queuePrompt(0, 1);
-    await wait(300);
+    if (i < count - 1) {
+      await wait(300);
+    }
   }
 };
 
-
-export const replaceNodeValue = (node_id: number, widget_name: string, value: string) => {
+export const replaceNodeValue = (
+  node_id: number,
+  widget_name: string,
+  value: string
+) => {
   const app = resolveApp();
   const node = app.graph._nodes_by_id[node_id];
   if (!node) {
@@ -62,22 +67,26 @@ export const replaceNodeValue = (node_id: number, widget_name: string, value: st
       widget.value = value;
     }
   }
-}
+};
 
 const setNodeMode = (node_id: number, mode: LGraphEventMode) => {
-  const node = resolveApp().graph._nodes_by_id[node_id]
+  const node = resolveApp().graph._nodes_by_id[node_id];
   if (!node) {
-    console.warn("Node with ID", node_id, "not found in graph");
+    console.warn('Node with ID', node_id, 'not found in graph');
     return;
   }
   node.mode = mode;
-}
+};
 
-export const bypassNode  = (node_id: number) => {setNodeMode(node_id, LGraphEventMode.BYPASS)}
-export const disableNode = (node_id: number) => {setNodeMode(node_id, LGraphEventMode.NEVER)}
-export const enableNode  = (node_id: number) => {setNodeMode(node_id, LGraphEventMode.ALWAYS)}
-
-
+export const bypassNode = (node_id: number) => {
+  setNodeMode(node_id, LGraphEventMode.BYPASS);
+};
+export const disableNode = (node_id: number) => {
+  setNodeMode(node_id, LGraphEventMode.NEVER);
+};
+export const enableNode = (node_id: number) => {
+  setNodeMode(node_id, LGraphEventMode.ALWAYS);
+};
 
 export interface ImageItem {
   filename: string;
@@ -104,15 +113,13 @@ export async function loadWorkflow(img: ImageItem): Promise<void> {
 }
 
 export function shuffleArray<T>(array: T[]) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
 }
 
-
-
 export interface Differ {
-  diffData: Record<string, any>
-  applyDiff: Function
+  diffData: Record<string, any>;
+  applyDiff: Function;
 }

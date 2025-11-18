@@ -1,11 +1,11 @@
-import { queuePrompts } from '@/lib'
+import { queuePrompts } from '@/lib';
 
 type GenerateImagesEvent = {
-  type: "generate",
+  type: 'generate';
   detail: {
-    count?: number,
-  },
-}
+    count?: number;
+  };
+};
 
 export const handleGenerateImages = (event: GenerateImagesEvent) => {
   const { count } = event.detail ?? {};
